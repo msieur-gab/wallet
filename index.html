@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DID + VC Demo (browser‑only, did:key, VP, challenge)</title>
+  <style>
+    :root { --gap: 12px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, Helvetica, sans-serif; max-width: 980px; margin: 0 auto; padding: 24px; line-height: 1.45; }
+    h1 { margin-bottom: 0.25rem; }
+    small.muted { color: #667085; display:block; margin-bottom: 1rem; }
+    section { border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; margin: 16px 0; }
+    label { display:block; margin: 6px 0; font-size: .95rem; }
+    input[type="text"], textarea { width:100%; padding:.6rem .7rem; border:1px solid #d1d5db; border-radius:8px; font-family:inherit; }
+    textarea { min-height: 110px; }
+    button { padding:.6rem .8rem; border-radius: 10px; border: 1px solid #111827; background:#111827; color:white; font-weight:600; cursor:pointer; }
+    button.secondary { background:white; color:#111827; border-color:#cbd5e1; }
+    code, pre { background: #0b1020; color: #e6edf3; border-radius: 10px; padding: 10px; overflow:auto; }
+    .row { display:flex; gap: var(--gap); align-items:flex-start; flex-wrap: wrap; }
+    .col { flex:1 1 300px; }
+    .hint { font-size:.9rem; color:#475569; }
+    .ok { color:#065f46; }
+    .err { color:#b91c1c; }
+    #qr { margin-top: .5rem; display:flex; gap:12px; align-items:center; }
+    .kv { display:grid; grid-template-columns: 170px 1fr; gap:6px 14px; }
+  </style>
+</head>
+<body>
+
+  <h1>DIDs & VCs — minimal browser demo</h1>
+  <small class="muted">did:key (Ed25519) issuer, VC issuance, QR sharing, and VP verification with <strong>challenge + domain</strong>. Includes a simple holder‑side <em>selective disclosure</em> ("over18").</small>
+
+  <!-- 1. WALLET / DID -->
+  <section>
+    <h2>1) Create local DID (did:key)</h2>
+    <div class="row">
+      <div class="col">
+        <button id="genDidBtn">Generate DID</button>
+        <button id="exportBtn" class="secondary">Export wallet (AES‑GCM)</button>
+        <button id="importBtn" class="secondary">Import wallet</button>
+        <div class="hint">Keys live in memory only unless you export them encrypted with a passphrase.</div>
+      </div>
+      <div class="col">
+        <div class="kv">
+          <div>Issuer DID:</div><div id="issuerDid">—</div>
+          <div>Public key (base58):</div><div id="pubB58">—</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. ISSUE VC -->
+  <section>
+    <h2>2) Issue a Verifiable Credential (VC)</h2>
+    <div class="row">
+      <div class="col">
+        <label>Subject name <small class="hint">(holder display name)</small>
+          <input id="subjectName" placeholder="Alice" value="Alice" />
+        </label>
+        <label>Claim JSON <small class="hint">(e.g. { "age": 27, "memberId":"abc-123" })</small>
+          <textarea id="claimJson">{ "age": 27 }</textarea>
+        </label>
+        <div class="row">
+          <button id="issueVcBtn">Issue VC (JWT)</button>
+          <button id="makeVpBtn" class="secondary">Make Verifiable Presentation (VP)</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="hint">The issuer is your local <code>did:key</code>. Subject is a demo DID <code>did:example:&lt;name&gt;</code> for simplicity.
+          For production, the holder would present the VC from their own wallet.</div>
+        <pre id="vcOut">—</pre>
+        <div id="qr"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. VERIFY -->
+  <section>
+    <h2>3) Verify VC / VP</h2>
+    <div class="row">
+      <div class="col">
+        <label>Paste VC/VP JWT
+          <textarea id="incomingJwt"></textarea>
+        </label>
+        <div class="row">
+          <div class="col">
+            <label>Expected <strong>challenge</strong>
+              <input id="challenge" placeholder="random nonce" />
+            </label>
+          </div>
+          <div class="col">
+            <label>Expected <strong>domain</strong>
+              <input id="domain" placeholder="verifier.example.org" />
+            </label>
+          </div>
+        </div>
+        <button id="verifyBtn">Verify</button>
+      </div>
+      <div class="col">
+        <pre id="verifyResult">—</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. HOLDER‑SIDE SELECTIVE DISCLOSURE (toy) -->
+  <section>
+    <h2>Bonus) Holder‑side selective disclosure (derived claim)</h2>
+    <div class="row">
+      <div class="col">
+        <p class="hint">From an <code>age</code> attribute in the VC, the holder can present only a boolean predicate <code>over18: true</code>.
+           This is NOT SD‑JWT—just a didactic demo that keeps raw age private in the VP.</p>
+        <button id="makeDerivedVpBtn" class="secondary">Create VP with only <code>over18</code></button>
+      </div>
+      <div class="col">
+        <pre id="derivedVpOut">—</pre>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Notes for a healthcare setting</h3>
+    <ul>
+      <li>Always use a <strong>challenge (nonce)</strong> and <strong>domain (audience)</strong> when requesting a VP to prevent replay.</li>
+      <li>Prefer <strong>did:web</strong> or <strong>did:ion</strong> for registered org issuers; keep <strong>did:key</strong> for ephemeral/dev.</li>
+      <li>For true data‑minimization, use <strong>SD‑JWT VCs</strong> or BBS+ signatures for unlinkable selective disclosure.</li>
+      <li>Store keys in a <strong>secure enclave</strong> where possible; never transmit private keys to third parties.</li>
+    </ul>
+  </section>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
