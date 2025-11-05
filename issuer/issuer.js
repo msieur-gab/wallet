@@ -30,7 +30,10 @@ async function initializeIssuer() {
       const privateKey = ed25519.utils.randomPrivateKey();
       const publicKey = ed25519.getPublicKey(privateKey);
       const did = createDidKey(publicKey);
-      const signer = EdDSASigner(privateKey);
+
+      // EdDSASigner expects hex string, not Uint8Array
+      const privateKeyHex = bytesToHex(privateKey);
+      const signer = EdDSASigner(privateKeyHex);
 
       issuerKeys[profile.id] = {
         privateKey,
