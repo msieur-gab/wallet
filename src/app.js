@@ -35,6 +35,14 @@ import {
   createZKPresentation
 } from './credentials/zkCredentials.js';
 import {
+  getMinimalClaims,
+  getHiddenClaims,
+  getPrivacyDescription
+} from './credentials/privacySchema.js';
+import {
+  getCredentialJWT
+} from './credentials/selectiveDisclosure.js';
+import {
   generateProfileQR,
   generateDidQR,
   generateCredentialQR,
@@ -55,6 +63,9 @@ let currentUser = null;
 let currentSession = null;
 let currentQR = null;
 let qrScanner = null;
+// Temporary password storage for selective disclosure (in-memory only, not persisted)
+// Note: For production, use more secure key management
+let sessionPassword = null;
 
 // ============================================================================
 // INITIALIZATION
@@ -243,6 +254,7 @@ async function handleRegister() {
       const session = await login(username, password);
       currentSession = session;
       currentUser = username;
+      sessionPassword = password; // Store temporarily for selective disclosure
       await loadMainApp();
     }, 1000);
 
@@ -260,6 +272,7 @@ async function handleLogin() {
     const session = await login(username, password);
     currentSession = session;
     currentUser = username;
+    sessionPassword = password; // Store temporarily for selective disclosure
 
     await loadMainApp();
 
@@ -274,6 +287,7 @@ async function handleLogout() {
     await logout(currentUser);
     currentUser = null;
     currentSession = null;
+    sessionPassword = null; // Clear password from memory
     showAuthScreen();
     showAuthMessage('Logged out successfully', 'info');
   } catch (error) {
@@ -612,8 +626,61 @@ async function loadCredentialsPanel() {
                 `).join('') : '<p style="color: #9ca3af; font-size: 13px; margin: 0;">No claims data</p>'}
               </div>
 
+              <!-- Privacy Toggle Section -->
+              <div style="margin-top: 20px; padding: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                  <div>
+                    <h4 style="margin: 0; font-size: 14px; font-weight: 600; color: #166534;">
+                      Privacy Control
+                    </h4>
+                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #15803d;">
+                      Choose what information to share
+                    </p>
+                  </div>
+                  <label class="toggle-switch" style="position: relative; display: inline-block; width: 120px; height: 28px;">
+                    <input
+                      type="checkbox"
+                      id="privacy-toggle-${index}"
+                      data-cred-index="${index}"
+                      style="opacity: 0; width: 0; height: 0;">
+                    <span style="
+                      position: absolute;
+                      cursor: pointer;
+                      top: 0; left: 0; right: 0; bottom: 0;
+                      background-color: #059669;
+                      border-radius: 28px;
+                      transition: 0.3s;
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      padding: 0 8px;
+                      font-size: 10px;
+                      font-weight: 600;
+                      color: white;
+                    " class="privacy-slider-${index}">
+                      <span style="opacity: 1;" class="privacy-text-${index}">PRIVACY</span>
+                      <span style="opacity: 0.5;">FULL</span>
+                      <span style="
+                        position: absolute;
+                        content: '';
+                        height: 22px;
+                        width: 22px;
+                        left: 3px;
+                        bottom: 3px;
+                        background-color: white;
+                        border-radius: 50%;
+                        transition: 0.3s;
+                      " class="privacy-thumb-${index}"></span>
+                    </span>
+                  </label>
+                </div>
+
+                <!-- Claims Visibility Indicator -->
+                <div id="claims-indicator-${index}" style="font-size: 12px; line-height: 1.6;"></div>
+              </div>
+
               <!-- QR Code Section - Auto-generated -->
-              <div style="margin-top: 24px; text-align: center;">
+              <div style="margin-top: 16px; text-align: center;">
                 <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #374151;">
                   Verification QR Code
                 </h4>
@@ -623,6 +690,7 @@ async function loadCredentialsPanel() {
                   border-radius: 8px;
                   display: inline-block;
                   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                  min-height: 300px;
                 "></div>
                 <p style="font-size: 12px; color: #6b7280; margin-top: 8px;">
                   Scan this QR code to verify the credential
@@ -634,17 +702,86 @@ async function loadCredentialsPanel() {
       `;
     }).join('');
 
-    // Track which QR codes have been generated
+    // Track which QR codes have been generated and their privacy state
     const qrGenerated = new Set();
+    const privacyStates = new Map(); // index -> boolean (true = privacy mode)
+
+    // Function to update claims indicator
+    function updateClaimsIndicator(index, privacyMode) {
+      const cred = credentials[index];
+      const indicator = document.getElementById(`claims-indicator-${index}`);
+
+      if (!indicator) return;
+
+      if (privacyMode) {
+        const minimalClaims = getMinimalClaims(cred.credentialType, cred.claims);
+        const hiddenClaims = getHiddenClaims(cred.credentialType, cred.claims);
+
+        const sharedList = Object.keys(minimalClaims).map(k => `<span style="color: #059669;">✓ ${k}</span>`).join(', ');
+        const hiddenList = hiddenClaims.map(k => `<span style="color: #9ca3af;">✗ ${k}</span>`).join(', ');
+
+        indicator.innerHTML = `
+          <div style="color: #166534;"><strong>Shared:</strong> ${sharedList || 'None'}</div>
+          ${hiddenList ? `<div style="color: #6b7280; margin-top: 4px;"><strong>Hidden:</strong> ${hiddenList}</div>` : ''}
+        `;
+      } else {
+        const allClaims = Object.keys(cred.claims).filter(k => k !== 'id');
+        const sharedList = allClaims.map(k => `<span style="color: #059669;">✓ ${k}</span>`).join(', ');
+
+        indicator.innerHTML = `
+          <div style="color: #166534;"><strong>Shared:</strong> ${sharedList}</div>
+          <div style="color: #9ca3af; margin-top: 4px; font-style: italic;">All credential details visible</div>
+        `;
+      }
+    }
+
+    // Function to regenerate QR code
+    async function regenerateQR(index, privacyMode) {
+      const cred = credentials[index];
+      const qrContainer = document.getElementById(`credential-qr-${index}`);
+
+      if (!qrContainer) return;
+
+      try {
+        // Clear existing QR
+        qrContainer.innerHTML = '<p style="color: #6b7280; font-size: 13px;">Generating...</p>';
+
+        // Get appropriate JWT based on privacy mode
+        const jwt = await getCredentialJWT(currentUser, sessionPassword, cred, privacyMode);
+
+        // Generate QR code
+        generateCredentialQR(jwt, qrContainer, {
+          width: 280,
+          height: 280
+        });
+
+        // Update claims indicator
+        updateClaimsIndicator(index, privacyMode);
+
+      } catch (error) {
+        console.error('Error generating QR code:', error);
+        qrContainer.innerHTML = `<p style="color: #ef4444; font-size: 13px;">Failed: ${error.message}</p>`;
+      }
+    }
 
     // Add click handlers for expansion
     credentials.forEach((cred, index) => {
       const card = container.querySelector(`[data-credential-index="${index}"]`);
       const details = container.querySelector(`.credential-details-${index}`);
       const icon = container.querySelector(`.expand-icon-${index}`);
+      const toggle = document.getElementById(`privacy-toggle-${index}`);
+      const slider = container.querySelector(`.privacy-slider-${index}`);
+      const thumb = container.querySelector(`.privacy-thumb-${index}`);
+      const privacyText = container.querySelectorAll(`.privacy-text-${index}`);
+
+      // Initialize privacy mode (default: privacy first)
+      privacyStates.set(index, true);
 
       if (card && details && icon) {
         card.addEventListener('click', async (e) => {
+          // Don't collapse if clicking on the toggle
+          if (e.target.closest('.toggle-switch')) return;
+
           const isExpanded = details.style.maxHeight && details.style.maxHeight !== '0px';
 
           if (isExpanded) {
@@ -660,26 +797,48 @@ async function loadCredentialsPanel() {
             if (!qrGenerated.has(index)) {
               qrGenerated.add(index);
 
-              const qrContainer = document.getElementById(`credential-qr-${index}`);
-              if (qrContainer && cred.credentialJwt) {
-                try {
-                  // Generate QR code using the utility
-                  generateCredentialQR(cred.credentialJwt, qrContainer, {
-                    width: 280,
-                    height: 280
-                  });
+              // Start in privacy mode by default
+              await regenerateQR(index, true);
 
-                  // Recalculate height after QR is added
-                  setTimeout(() => {
-                    details.style.maxHeight = details.scrollHeight + 'px';
-                  }, 100);
-                } catch (error) {
-                  console.error('Error generating QR code:', error);
-                  qrContainer.innerHTML = '<p style="color: #ef4444; font-size: 13px;">Failed to generate QR code</p>';
-                }
-              }
+              // Recalculate height after QR is added
+              setTimeout(() => {
+                details.style.maxHeight = details.scrollHeight + 'px';
+              }, 300);
             }
           }
+        });
+      }
+
+      // Add toggle change handler
+      if (toggle) {
+        toggle.addEventListener('change', async (e) => {
+          e.stopPropagation();
+
+          const privacyMode = !toggle.checked; // Unchecked = privacy, checked = full
+          privacyStates.set(index, privacyMode);
+
+          // Update toggle UI
+          if (privacyMode) {
+            slider.style.backgroundColor = '#059669';
+            thumb.style.transform = 'translateX(0)';
+            privacyText.forEach((el, i) => {
+              el.style.opacity = i === 0 ? '1' : '0.5';
+            });
+          } else {
+            slider.style.backgroundColor = '#dc2626';
+            thumb.style.transform = 'translateX(92px)';
+            privacyText.forEach((el, i) => {
+              el.style.opacity = i === 0 ? '0.5' : '1';
+            });
+          }
+
+          // Regenerate QR code with new privacy setting
+          await regenerateQR(index, privacyMode);
+
+          // Recalculate expanded height
+          setTimeout(() => {
+            details.style.maxHeight = details.scrollHeight + 'px';
+          }, 100);
         });
       }
     });
