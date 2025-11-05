@@ -6,7 +6,7 @@
  */
 
 import { ed25519 } from '@noble/curves/ed25519';
-import { bytesToHex } from '@noble/hashes/utils';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { createVerifiableCredentialJwt } from 'did-jwt-vc';
 import { EdDSASigner } from 'did-jwt';
 
@@ -25,14 +25,42 @@ async function initializeIssuer() {
     const data = await response.json();
     issuerProfiles = data.issuers;
 
-    // Generate keys for each issuer profile
+    // Load or generate keys for each issuer profile
     for (const profile of issuerProfiles) {
-      const privateKey = ed25519.utils.randomPrivateKey();
-      const publicKey = ed25519.getPublicKey(privateKey);
-      const did = createDidKey(publicKey);
+      let privateKey, publicKey, did, privateKeyHex;
 
-      // EdDSASigner expects hex string, not Uint8Array
-      const privateKeyHex = bytesToHex(privateKey);
+      if (profile.privateKey && profile.did) {
+        // Load existing persistent keys from JSON
+        privateKeyHex = profile.privateKey;
+        privateKey = hexToBytes(privateKeyHex);
+        publicKey = ed25519.getPublicKey(privateKey);
+        did = profile.did;
+
+        // Verify that stored DID matches derived DID
+        const derivedDid = createDidKey(publicKey);
+        if (derivedDid !== did) {
+          console.error(`❌ DID mismatch for ${profile.name}!`);
+          console.error(`   Stored: ${did}`);
+          console.error(`   Derived: ${derivedDid}`);
+          throw new Error(`DID mismatch for ${profile.name}`);
+        }
+
+        console.log(`✅ Loaded persistent keys for ${profile.name}`);
+        console.log(`   DID: ${did}`);
+      } else {
+        // Generate new keys (for profiles without persistent keys)
+        privateKey = ed25519.utils.randomPrivateKey();
+        publicKey = ed25519.getPublicKey(privateKey);
+        did = createDidKey(publicKey);
+        privateKeyHex = bytesToHex(privateKey);
+
+        console.warn(`⚠️  Generated NEW keys for ${profile.name}`);
+        console.warn(`   Add to issuers.json:`);
+        console.warn(`   "privateKey": "${privateKeyHex}",`);
+        console.warn(`   "did": "${did}",`);
+      }
+
+      // EdDSASigner expects hex string
       const signer = EdDSASigner(privateKeyHex);
 
       issuerKeys[profile.id] = {
@@ -41,8 +69,6 @@ async function initializeIssuer() {
         did,
         signer
       };
-
-      console.log(`🔑 Generated keys for ${profile.name}: ${did}`);
     }
 
     // Populate issuer selector
