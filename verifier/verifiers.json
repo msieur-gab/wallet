@@ -1,0 +1,49 @@
+{
+  "verifiers": [
+    {
+      "id": "restaurant",
+      "name": "Restaurant / Public Place",
+      "icon": "🍽️",
+      "description": "Restaurants, museums, theaters, public transportation",
+      "purpose": "Basic verification for entry/access",
+      "acceptedTypes": ["VaccinationCredential", "AgeCredential", "MembershipCredential"],
+      "note": "Privacy-mode credentials are recommended for public verifiers"
+    },
+    {
+      "id": "medical",
+      "name": "Medical Facility",
+      "icon": "🏥",
+      "description": "Hospitals, clinics, healthcare providers",
+      "purpose": "Medical treatment and healthcare services",
+      "acceptedTypes": ["VaccinationCredential", "HealthInsuranceCredential"],
+      "note": "Full disclosure may be required for medical care"
+    },
+    {
+      "id": "government",
+      "name": "Government Agency",
+      "icon": "🏛️",
+      "description": "DMV, passport office, tax authority, court",
+      "purpose": "Official government services and verification",
+      "acceptedTypes": ["EducationCredential", "EmploymentCredential", "AgeCredential"],
+      "note": "Full disclosure typically required for official processes"
+    },
+    {
+      "id": "employer",
+      "name": "Employer / HR",
+      "icon": "💼",
+      "description": "Companies, HR departments, recruiting agencies",
+      "purpose": "Employment verification and background checks",
+      "acceptedTypes": ["EducationCredential", "EmploymentCredential"],
+      "note": "Verify work history and educational qualifications"
+    },
+    {
+      "id": "educational",
+      "name": "Educational Institution",
+      "icon": "🎓",
+      "description": "Universities, colleges, training programs",
+      "purpose": "Admission and enrollment verification",
+      "acceptedTypes": ["EducationCredential", "AgeCredential"],
+      "note": "Verifies prior education for admissions"
+    }
+  ]
+}

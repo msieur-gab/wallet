@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HC1 Credential Verifier</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      color: #111827;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #047857;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: #6b7280;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+      margin-bottom: 24px;
+    }
+
+    .input-section {
+      margin-bottom: 24px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #374151;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      resize: vertical;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #059669;
+    }
+
+    .button {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.2s;
+      width: 100%;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .button:active {
+      transform: translateY(0);
+    }
+
+    .button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status-verifying,
+    .status-success,
+    .status-expired,
+    .status-error {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .status-verifying svg {
+      color: #3b82f6;
+    }
+
+    .status-success svg {
+      color: #10b981;
+    }
+
+    .status-expired svg {
+      color: #f59e0b;
+    }
+
+    .status-error svg {
+      color: #ef4444;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 64px;
+      height: 64px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    h2 {
+      font-size: 24px;
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+
+    .status-verifying p,
+    .status-success p,
+    .status-expired p,
+    .status-error p {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .credential-details {
+      margin-top: 24px;
+    }
+
+    .detail-section {
+      margin-bottom: 24px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .detail-section:last-child {
+      border-bottom: none;
+    }
+
+    .detail-section h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #047857;
+    }
+
+    .detail-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      flex: 0 0 180px;
+      font-weight: 600;
+      color: #6b7280;
+    }
+
+    .detail-value {
+      flex: 1;
+      color: #111827;
+    }
+
+    .detail-value.expired {
+      color: #ef4444;
+      font-weight: 600;
+    }
+
+    .raw-data {
+      background: #f9fafb;
+      padding: 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      overflow-x: auto;
+      border: 1px solid #e5e7eb;
+    }
+
+    .verifier-profiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .verifier-card {
+      background: #f0fdf4;
+      border: 2px solid #86efac;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .verifier-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .verifier-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .verifier-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #047857;
+      margin-bottom: 4px;
+    }
+
+    .verifier-desc {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .helper-text {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+
+    .example-section {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .example-title {
+      font-weight: 600;
+      color: #92400e;
+      margin-bottom: 8px;
+    }
+
+    .example-text {
+      font-size: 13px;
+      color: #78350f;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔍 HC1 Credential Verifier</h1>
+      <p class="subtitle">Verify HC1-encoded credentials from wallet QR codes</p>
+    </header>
+
+    <div class="card">
+      <div class="input-section">
+        <label for="hc1-input">Paste HC1 Credential Data</label>
+        <textarea
+          id="hc1-input"
+          placeholder="HC1:NCFOXN%TS3DH3AO9W5...&#10;&#10;Scan QR code from wallet and paste the HC1 data here"
+          spellcheck="false"
+        ></textarea>
+        <p class="helper-text">💡 The data should start with "HC1:" and contain Base45-encoded credential information</p>
+      </div>
+
+      <button class="button" id="verify-button">Verify Credential</button>
+
+      <div class="example-section">
+        <div class="example-title">How to verify credentials:</div>
+        <div class="example-text">
+          1. Open the Identity Wallet app<br>
+          2. Expand a credential card<br>
+          3. Use your phone camera to scan the QR code<br>
+          4. Copy the scanned text (starts with "HC1:")<br>
+          5. Paste it above and click "Verify Credential"
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="verification-status" style="display: none;">
+      <!-- Status will be injected here -->
+    </div>
+
+    <div class="card" id="verification-result" style="display: none;">
+      <!-- Results will be injected here -->
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom: 16px; color: #047857;">Verifier Profiles</h3>
+      <p style="color: #6b7280; margin-bottom: 16px; font-size: 14px;">
+        This verifier can accept credentials from various contexts:
+      </p>
+      <div class="verifier-profiles" id="verifier-profiles">
+        <!-- Verifier profiles will be loaded here -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { verifyHC1Credential } from './verifier.js';
+
+    // Load verifier profiles
+    async function loadVerifierProfiles() {
+      try {
+        const response = await fetch('./verifiers.json');
+        const data = await response.json();
+
+        const container = document.getElementById('verifier-profiles');
+        container.innerHTML = data.verifiers.map(v => `
+          <div class="verifier-card">
+            <div class="verifier-icon">${v.icon}</div>
+            <div class="verifier-name">${v.name}</div>
+            <div class="verifier-desc">${v.description}</div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Failed to load verifier profiles:', error);
+      }
+    }
+
+    // Initialize
+    loadVerifierProfiles();
+
+    // Verify button click handler
+    document.getElementById('verify-button').addEventListener('click', async () => {
+      const input = document.getElementById('hc1-input').value.trim();
+
+      if (!input) {
+        alert('Please paste HC1 credential data first');
+        return;
+      }
+
+      if (!input.startsWith('HC1:')) {
+        alert('Invalid HC1 format. Data should start with "HC1:"');
+        return;
+      }
+
+      // Show status and result containers
+      document.getElementById('verification-status').style.display = 'block';
+      document.getElementById('verification-result').style.display = 'block';
+
+      // Verify the credential
+      await verifyHC1Credential(input);
+    });
+
+    // Allow Enter key to trigger verification (with Ctrl/Cmd)
+    document.getElementById('hc1-input').addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        document.getElementById('verify-button').click();
+      }
+    });
+  </script>
+</body>
+</html>

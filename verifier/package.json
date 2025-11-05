@@ -1,0 +1,14 @@
+{
+  "name": "credential-verifier",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Verifier service for HC1-encoded credentials",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "base45": "^3.0.0",
+    "cbor2": "^1.5.1",
+    "pako": "^2.1.0"
+  }
+}
