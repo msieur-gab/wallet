@@ -2,131 +2,662 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DID + VC Demo (browser‑only, did:key, VP, challenge)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Personal Identity Wallet</title>
   <style>
-    :root { --gap: 12px; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, Helvetica, sans-serif; max-width: 980px; margin: 0 auto; padding: 24px; line-height: 1.45; }
-    h1 { margin-bottom: 0.25rem; }
-    small.muted { color: #667085; display:block; margin-bottom: 1rem; }
-    section { border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; margin: 16px 0; }
-    label { display:block; margin: 6px 0; font-size: .95rem; }
-    input[type="text"], textarea { width:100%; padding:.6rem .7rem; border:1px solid #d1d5db; border-radius:8px; font-family:inherit; }
-    textarea { min-height: 110px; }
-    button { padding:.6rem .8rem; border-radius: 10px; border: 1px solid #111827; background:#111827; color:white; font-weight:600; cursor:pointer; }
-    button.secondary { background:white; color:#111827; border-color:#cbd5e1; }
-    code, pre { background: #0b1020; color: #e6edf3; border-radius: 10px; padding: 10px; overflow:auto; }
-    .row { display:flex; gap: var(--gap); align-items:flex-start; flex-wrap: wrap; }
-    .col { flex:1 1 300px; }
-    .hint { font-size:.9rem; color:#475569; }
-    .ok { color:#065f46; }
-    .err { color:#b91c1c; }
-    #qr { margin-top: .5rem; display:flex; gap:12px; align-items:center; }
-    .kv { display:grid; grid-template-columns: 170px 1fr; gap:6px 14px; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --primary-light: #3b82f6;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --bg-light: #f9fafb;
+      --bg-dark: #111827;
+      --text-dark: #1f2937;
+      --text-light: #6b7280;
+      --border: #e5e7eb;
+      --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: var(--text-dark);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* Auth Screen */
+    .auth-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .auth-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: var(--shadow-lg);
+      padding: 40px;
+      max-width: 450px;
+      width: 100%;
+    }
+
+    .auth-card h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      color: var(--text-dark);
+    }
+
+    .auth-card p {
+      color: var(--text-light);
+      margin-bottom: 32px;
+    }
+
+    /* Main App */
+    .app-container {
+      display: none;
+    }
+
+    .app-header {
+      background: white;
+      box-shadow: var(--shadow);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      border-radius: 12px;
+    }
+
+    .app-header h1 {
+      font-size: 24px;
+      color: var(--text-dark);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    /* Navigation */
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      background: white;
+      padding: 8px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+
+    .nav-tab {
+      padding: 12px 24px;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-light);
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .nav-tab:hover {
+      background: var(--bg-light);
+      color: var(--text-dark);
+    }
+
+    .nav-tab.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Panels */
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: var(--text-dark);
+    }
+
+    /* Forms */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--text-dark);
+    }
+
+    .form-group small {
+      display: block;
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="email"],
+    input[type="tel"],
+    textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    input:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: var(--bg-light);
+      color: var(--text-dark);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-full {
+      width: 100%;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+
+    /* Profile Display */
+    .profile-display {
+      text-align: center;
+      padding: 24px;
+    }
+
+    .profile-picture {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      background: var(--bg-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      color: var(--text-light);
+      overflow: hidden;
+    }
+
+    .profile-picture img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .did-display {
+      background: var(--bg-light);
+      padding: 12px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      word-break: break-all;
+      margin: 16px 0;
+    }
+
+    /* QR Code */
+    .qr-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      background: var(--bg-light);
+      border-radius: 12px;
+    }
+
+    /* Credentials List */
+    .credential-item {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .credential-item:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow);
+    }
+
+    .credential-type {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+
+    .credential-meta {
+      font-size: 12px;
+      color: var(--text-light);
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge-danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .badge-info {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    /* Alert */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .alert-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+
+    .alert-info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-light);
+    }
+
+    .spinner {
+      border: 3px solid var(--bg-light);
+      border-top: 3px solid var(--primary);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Hidden */
+    .hidden {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        padding: 12px;
+      }
+
+      .app-header {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+      }
+
+      .nav-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+      }
+    }
   </style>
 </head>
 <body>
+  <!-- Authentication Screen -->
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <h1>🔐 Identity Wallet</h1>
+      <p>Secure, decentralized identity management</p>
 
-  <h1>DIDs & VCs — minimal browser demo</h1>
-  <small class="muted">did:key (Ed25519) issuer, VC issuance, QR sharing, and VP verification with <strong>challenge + domain</strong>. Includes a simple holder‑side <em>selective disclosure</em> ("over18").</small>
-
-  <!-- 1. WALLET / DID -->
-  <section>
-    <h2>1) Create local DID (did:key)</h2>
-    <div class="row">
-      <div class="col">
-        <button id="genDidBtn">Generate DID</button>
-        <button id="exportBtn" class="secondary">Export wallet (AES‑GCM)</button>
-        <button id="importBtn" class="secondary">Import wallet</button>
-        <div class="hint">Keys live in memory only unless you export them encrypted with a passphrase.</div>
-      </div>
-      <div class="col">
-        <div class="kv">
-          <div>Issuer DID:</div><div id="issuerDid">—</div>
-          <div>Public key (base58):</div><div id="pubB58">—</div>
+      <div id="loginForm">
+        <h2 style="font-size: 18px; margin-bottom: 16px;">Login</h2>
+        <div class="form-group">
+          <label for="loginUsername">Username</label>
+          <input type="text" id="loginUsername" placeholder="Enter your username" autocomplete="username">
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 2. ISSUE VC -->
-  <section>
-    <h2>2) Issue a Verifiable Credential (VC)</h2>
-    <div class="row">
-      <div class="col">
-        <label>Subject name <small class="hint">(holder display name)</small>
-          <input id="subjectName" placeholder="Alice" value="Alice" />
-        </label>
-        <label>Claim JSON <small class="hint">(e.g. { "age": 27, "memberId":"abc-123" })</small>
-          <textarea id="claimJson">{ "age": 27 }</textarea>
-        </label>
-        <div class="row">
-          <button id="issueVcBtn">Issue VC (JWT)</button>
-          <button id="makeVpBtn" class="secondary">Make Verifiable Presentation (VP)</button>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
         </div>
+        <button id="loginBtn" class="btn btn-primary btn-full">Login</button>
+        <p style="text-align: center; margin-top: 16px; font-size: 14px;">
+          Don't have an account? <a href="#" id="showRegister" style="color: var(--primary); text-decoration: none; font-weight: 600;">Register</a>
+        </p>
       </div>
-      <div class="col">
-        <div class="hint">The issuer is your local <code>did:key</code>. Subject is a demo DID <code>did:example:&lt;name&gt;</code> for simplicity.
-          For production, the holder would present the VC from their own wallet.</div>
-        <pre id="vcOut">—</pre>
-        <div id="qr"></div>
-      </div>
-    </div>
-  </section>
 
-  <!-- 3. VERIFY -->
-  <section>
-    <h2>3) Verify VC / VP</h2>
-    <div class="row">
-      <div class="col">
-        <label>Paste VC/VP JWT
-          <textarea id="incomingJwt"></textarea>
-        </label>
-        <div class="row">
-          <div class="col">
-            <label>Expected <strong>challenge</strong>
-              <input id="challenge" placeholder="random nonce" />
-            </label>
+      <div id="registerForm" class="hidden">
+        <h2 style="font-size: 18px; margin-bottom: 16px;">Create Account</h2>
+        <div class="form-group">
+          <label for="regUsername">Username</label>
+          <input type="text" id="regUsername" placeholder="Choose a username" autocomplete="username">
+          <small>3-30 characters, letters, numbers, hyphens, underscores</small>
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" placeholder="Choose a strong password" autocomplete="new-password">
+          <small>Min 12 chars with uppercase, lowercase, number, special char</small>
+        </div>
+        <div class="form-group">
+          <label for="regPasswordConfirm">Confirm Password</label>
+          <input type="password" id="regPasswordConfirm" placeholder="Confirm your password" autocomplete="new-password">
+        </div>
+        <button id="registerBtn" class="btn btn-primary btn-full">Create Account</button>
+        <p style="text-align: center; margin-top: 16px; font-size: 14px;">
+          Already have an account? <a href="#" id="showLogin" style="color: var(--primary); text-decoration: none; font-weight: 600;">Login</a>
+        </p>
+      </div>
+
+      <div id="authMessage"></div>
+    </div>
+  </div>
+
+  <!-- Main Application -->
+  <div id="appContainer" class="app-container">
+    <div class="container">
+      <!-- Header -->
+      <div class="app-header">
+        <h1>Identity Wallet</h1>
+        <div class="user-info">
+          <div class="avatar" id="headerAvatar">
+            <img id="headerAvatarImg" class="hidden" src="" alt="">
+            <span id="headerAvatarText"></span>
           </div>
-          <div class="col">
-            <label>Expected <strong>domain</strong>
-              <input id="domain" placeholder="verifier.example.org" />
-            </label>
+          <div>
+            <div id="headerUsername" style="font-weight: 600;"></div>
+            <div id="headerDid" style="font-size: 12px; color: var(--text-light);"></div>
+          </div>
+          <button id="logoutBtn" class="btn btn-secondary" style="margin-left: 16px;">Logout</button>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="nav-tabs">
+        <button class="nav-tab active" data-panel="profile">👤 Profile</button>
+        <button class="nav-tab" data-panel="contacts">👥 Contacts</button>
+        <button class="nav-tab" data-panel="credentials">📜 Credentials</button>
+        <button class="nav-tab" data-panel="zk">🔒 Zero-Knowledge</button>
+        <button class="nav-tab" data-panel="scan">📱 Scan QR</button>
+        <button class="nav-tab" data-panel="settings">⚙️ Settings</button>
+      </div>
+
+      <!-- Messages -->
+      <div id="appMessage"></div>
+
+      <!-- Panels -->
+      <!-- Profile Panel -->
+      <div id="profilePanel" class="panel active">
+        <div class="card">
+          <h2>My Profile</h2>
+          <div class="profile-display">
+            <div class="profile-picture" id="profilePicture">
+              <span id="profileInitial">👤</span>
+            </div>
+            <h3 id="profileDisplayName">Loading...</h3>
+            <div class="did-display" id="profileDid">Loading...</div>
+            <div class="qr-container" id="profileQR"></div>
+            <button id="downloadQRBtn" class="btn btn-secondary">Download QR Code</button>
           </div>
         </div>
-        <button id="verifyBtn">Verify</button>
+
+        <div class="card">
+          <h2>Edit Profile</h2>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label for="editDisplayName">Display Name</label>
+              <input type="text" id="editDisplayName" placeholder="Your full name">
+            </div>
+            <div class="form-group">
+              <label for="editEmail">Email</label>
+              <input type="email" id="editEmail" placeholder="your@email.com">
+            </div>
+            <div class="form-group">
+              <label for="editPhone">Phone</label>
+              <input type="tel" id="editPhone" placeholder="+1234567890">
+            </div>
+            <div class="form-group">
+              <label for="editProfilePic">Profile Picture</label>
+              <input type="file" id="editProfilePic" accept="image/*">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="editAddress">Address</label>
+            <textarea id="editAddress" placeholder="Your address"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="editBio">Bio</label>
+            <textarea id="editBio" placeholder="Tell us about yourself"></textarea>
+          </div>
+          <h3 style="margin: 24px 0 16px 0;">Social Links</h3>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label for="editLinkedIn">LinkedIn</label>
+              <input type="text" id="editLinkedIn" placeholder="https://linkedin.com/in/...">
+            </div>
+            <div class="form-group">
+              <label for="editGitHub">GitHub</label>
+              <input type="text" id="editGitHub" placeholder="https://github.com/...">
+            </div>
+            <div class="form-group">
+              <label for="editTwitter">Twitter/X</label>
+              <input type="text" id="editTwitter" placeholder="https://twitter.com/...">
+            </div>
+            <div class="form-group">
+              <label for="editWebsite">Website</label>
+              <input type="text" id="editWebsite" placeholder="https://...">
+            </div>
+          </div>
+          <button id="saveProfileBtn" class="btn btn-primary">Save Profile</button>
+        </div>
       </div>
-      <div class="col">
-        <pre id="verifyResult">—</pre>
+
+      <!-- Contacts Panel -->
+      <div id="contactsPanel" class="panel">
+        <div class="card">
+          <h2>My Contacts</h2>
+          <div id="contactsList" class="loading">
+            <div class="spinner"></div>
+            <p>Loading contacts...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Credentials Panel -->
+      <div id="credentialsPanel" class="panel">
+        <div class="card">
+          <h2>My Credentials</h2>
+          <div style="margin-bottom: 16px;">
+            <button id="showIssueCredBtn" class="btn btn-primary">Issue New Credential</button>
+            <button id="showReceiveCredBtn" class="btn btn-secondary">Receive Credential</button>
+          </div>
+          <div id="credentialsList" class="loading">
+            <div class="spinner"></div>
+            <p>Loading credentials...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Zero-Knowledge Panel -->
+      <div id="zkPanel" class="panel">
+        <div class="card">
+          <h2>Zero-Knowledge Proofs</h2>
+          <p style="color: var(--text-light); margin-bottom: 20px;">
+            Create selective disclosure credentials that prove properties without revealing exact values.
+          </p>
+          <div id="zkContent"></div>
+        </div>
+      </div>
+
+      <!-- Scan QR Panel -->
+      <div id="scanPanel" class="panel">
+        <div class="card">
+          <h2>Scan QR Code</h2>
+          <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 0 auto;"></div>
+          <div id="scanResult" style="margin-top: 20px;"></div>
+        </div>
+      </div>
+
+      <!-- Settings Panel -->
+      <div id="settingsPanel" class="panel">
+        <div class="card">
+          <h2>Settings</h2>
+          <div style="padding: 20px 0;">
+            <button id="exportWalletBtn" class="btn btn-primary" style="margin-bottom: 12px;">Export Wallet Backup</button>
+            <button id="importWalletBtn" class="btn btn-secondary" style="margin-bottom: 12px;">Import Wallet</button>
+            <button id="changePasswordBtn" class="btn btn-secondary" style="margin-bottom: 12px;">Change Password</button>
+            <button id="deleteAccountBtn" class="btn btn-danger">Delete Account</button>
+          </div>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- 4. HOLDER‑SIDE SELECTIVE DISCLOSURE (toy) -->
-  <section>
-    <h2>Bonus) Holder‑side selective disclosure (derived claim)</h2>
-    <div class="row">
-      <div class="col">
-        <p class="hint">From an <code>age</code> attribute in the VC, the holder can present only a boolean predicate <code>over18: true</code>.
-           This is NOT SD‑JWT—just a didactic demo that keeps raw age private in the VP.</p>
-        <button id="makeDerivedVpBtn" class="secondary">Create VP with only <code>over18</code></button>
-      </div>
-      <div class="col">
-        <pre id="derivedVpOut">—</pre>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h3>Notes for a healthcare setting</h3>
-    <ul>
-      <li>Always use a <strong>challenge (nonce)</strong> and <strong>domain (audience)</strong> when requesting a VP to prevent replay.</li>
-      <li>Prefer <strong>did:web</strong> or <strong>did:ion</strong> for registered org issuers; keep <strong>did:key</strong> for ephemeral/dev.</li>
-      <li>For true data‑minimization, use <strong>SD‑JWT VCs</strong> or BBS+ signatures for unlinkable selective disclosure.</li>
-      <li>Store keys in a <strong>secure enclave</strong> where possible; never transmit private keys to third parties.</li>
-    </ul>
-  </section>
-
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/app.js"></script>
 </body>
 </html>

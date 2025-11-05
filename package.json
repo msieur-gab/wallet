@@ -1,21 +1,27 @@
 {
-  "name": "wallet",
-  "version": "0.1.0",
+  "name": "identity-wallet",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "Personal Digital Identity Wallet with VC/VP and Zero-Knowledge support",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "postinstall": "node scripts/postinstall.js"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@noble/curves": "^1.2.0",
+    "@noble/hashes": "^1.3.3",
+    "@zk-kit/lean-imt": "^2.0.0",
+    "@zk-kit/protocols": "^1.11.1",
+    "dexie": "^4.0.1",
+    "did-jwt": "^8.0.4",
     "did-jwt-vc": "^3.2.0",
     "did-resolver": "^4.1.0",
     "key-did-resolver": "^3.0.0",
-    "multiformats": "^11.0.2",
-    "qr-code-styling": "^1.5.0"
+    "html5-qrcode": "^2.3.8",
+    "multiformats": "^13.0.0",
+    "qr-code-styling": "^1.6.0-rc.1"
   },
   "devDependencies": {
     "vite": "^7.1.12"
