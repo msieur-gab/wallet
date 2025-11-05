@@ -160,7 +160,11 @@ function buildCredentialDisplay(credential, isExpired) {
         </div>
         <div class="detail-row">
           <span class="detail-label">Issuer:</span>
-          <span class="detail-value">${credential.iss || 'Unknown'}</span>
+          <span class="detail-value">${credential.issuerName || 'Unknown'}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Issuer DID:</span>
+          <span class="detail-value" style="font-size: 11px; word-break: break-all;">${credential.iss || 'Unknown'}</span>
         </div>
       </div>
 
@@ -195,6 +199,7 @@ function buildCredentialDisplay(credential, isExpired) {
  * Detect credential type from data
  */
 function detectCredentialType(credential) {
+  if (credential.type === 'IdentityWalletProfile') return 'Identity Profile';
   if (credential.v) return 'Vaccination Credential';
   if (credential.age) return 'Age Credential';
   if (credential.edu) return 'Education Credential';
@@ -207,16 +212,24 @@ function detectCredentialType(credential) {
  * Build subject information HTML
  */
 function buildSubjectInfo(credential) {
-  if (!credential.nam) {
+  if (!credential.nam && !credential.sub) {
     return '<p class="detail-value">No subject information available</p>';
   }
 
   return `
+    ${credential.sub ? `
     <div class="detail-row">
-      <span class="detail-label">Full Name:</span>
-      <span class="detail-value">${credential.nam.fn || 'Unknown'}</span>
+      <span class="detail-label">Holder DID:</span>
+      <span class="detail-value" style="font-size: 11px; word-break: break-all;">${credential.sub}</span>
     </div>
-    ${credential.nam.gn ? `
+    ` : ''}
+    ${credential.nam && credential.nam.fn ? `
+    <div class="detail-row">
+      <span class="detail-label">Name:</span>
+      <span class="detail-value">${credential.nam.fn}</span>
+    </div>
+    ` : ''}
+    ${credential.nam && credential.nam.gn ? `
     <div class="detail-row">
       <span class="detail-label">Given Name:</span>
       <span class="detail-value">${credential.nam.gn}</span>
@@ -235,6 +248,36 @@ function buildSubjectInfo(credential) {
  * Build claims information HTML
  */
 function buildClaimsInfo(credential) {
+  // Profile
+  if (credential.type === 'IdentityWalletProfile') {
+    return `
+      ${credential.bio ? `
+      <div class="detail-row">
+        <span class="detail-label">Bio:</span>
+        <span class="detail-value">${credential.bio}</span>
+      </div>
+      ` : ''}
+      ${credential.email ? `
+      <div class="detail-row">
+        <span class="detail-label">Email:</span>
+        <span class="detail-value">${credential.email}</span>
+      </div>
+      ` : ''}
+      ${credential.createdAt ? `
+      <div class="detail-row">
+        <span class="detail-label">Profile Created:</span>
+        <span class="detail-value">${new Date(credential.createdAt * 1000).toLocaleString()}</span>
+      </div>
+      ` : ''}
+      ${credential.exportedAt ? `
+      <div class="detail-row">
+        <span class="detail-label">QR Generated:</span>
+        <span class="detail-value">${new Date(credential.exportedAt * 1000).toLocaleString()}</span>
+      </div>
+      ` : ''}
+    `;
+  }
+
   // Vaccination
   if (credential.v && credential.v.length > 0) {
     const vax = credential.v[0];

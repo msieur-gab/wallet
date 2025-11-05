@@ -1,40 +1,42 @@
 import QRCodeStyling from 'qr-code-styling';
 import { Html5Qrcode } from 'html5-qrcode';
 import { getPublicProfileForQR } from '../profile/profileManager.js';
+import { createHC1FromProfile } from './hc1.js';
 
 /**
  * QR Code Utilities
  *
  * Handles QR code generation and scanning for:
- * - Sharing public profile/DID
- * - Sharing credentials
+ * - Sharing public profile/DID (HC1 format)
+ * - Sharing credentials (HC1 format)
  * - Adding contacts
+ *
+ * All QR codes now use HC1 (Health Certificate v1) format for:
+ * - Smaller, more scannable QR codes
+ * - Unified format across the application
+ * - Better compression and encoding
  */
 
 /**
- * Generate QR code for user's public profile
+ * Generate QR code for user's public profile (HC1 format)
  */
 export async function generateProfileQR(username, containerElement, options = {}) {
   // Get lightweight profile data (no image, for QR code)
   const profileData = await getPublicProfileForQR(username);
 
-  const profileJson = JSON.stringify({
-    version: 1,
-    type: 'IdentityWalletProfile',
-    profile: profileData,
-    exportedAt: Date.now()
-  });
+  // Encode profile as HC1 (compact format)
+  const hc1String = createHC1FromProfile(profileData);
 
   // Create QR code
   const qr = new QRCodeStyling({
     width: options.width || 300,
     height: options.height || 300,
-    data: profileJson,
+    data: hc1String,
     margin: options.margin || 10,
     qrOptions: {
       typeNumber: 0,
       mode: 'Byte',
-      errorCorrectionLevel: 'M'
+      errorCorrectionLevel: 'L' // Low for denser data
     },
     imageOptions: {
       hideBackgroundDots: true,

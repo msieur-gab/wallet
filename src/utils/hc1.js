@@ -76,15 +76,32 @@ export function decodeHC1(hc1String) {
  * @returns {string} HC1-encoded string
  */
 export function createHC1FromCredential(credential) {
+  // Extract holder information
+  const holderUsername = credential.username || 'Unknown';
+  const holderDid = credential.subjectDid || credential.holderDid || 'Unknown';
+
+  // Extract name from claims or use username as fallback
+  const fullName = credential.claims.fullName
+    || credential.claims.name
+    || credential.claims.userName
+    || holderUsername;
+
+  const givenName = credential.claims.givenName
+    || credential.claims.firstName
+    || '';
+
   // Build minimal credential payload in EU DCC format
   const payload = {
     // Version
     ver: '1.0.0',
 
-    // Credential subject details
+    // Holder/Subject information
+    sub: holderDid,
+
+    // Credential subject details (name)
     nam: {
-      fn: credential.claims.fullName || credential.claims.name || 'Unknown',
-      gn: credential.claims.givenName || credential.claims.firstName || ''
+      fn: fullName,
+      gn: givenName
     },
 
     // Date of birth (if available)
@@ -95,6 +112,7 @@ export function createHC1FromCredential(credential) {
 
     // Issuer information
     iss: credential.issuerDid || credential.issuer || 'Unknown',
+    issuerName: credential.issuerName || 'Unknown Issuer',
 
     // Issued at
     iat: credential.issuedAt ? Math.floor(new Date(credential.issuedAt).getTime() / 1000) : Math.floor(Date.now() / 1000),
@@ -196,6 +214,45 @@ export function compareSize(jwt, hc1) {
     reduction: `${reduction}%`,
     ratio: (jwtSize / hc1Size).toFixed(2) + 'x smaller'
   };
+}
+
+/**
+ * Create HC1-encoded profile from user profile
+ *
+ * @param {Object} profile - User profile object
+ * @returns {string} HC1-encoded string
+ */
+export function createHC1FromProfile(profile) {
+  const payload = {
+    // Version
+    ver: '1.0.0',
+
+    // Type identifier
+    type: 'IdentityWalletProfile',
+
+    // DID
+    sub: profile.did,
+
+    // Name
+    nam: {
+      fn: profile.name || profile.username || 'Unknown',
+      gn: ''
+    },
+
+    // Profile data
+    bio: profile.bio || '',
+
+    // Contact
+    email: profile.email || '',
+
+    // Timestamps
+    createdAt: profile.createdAt ? Math.floor(new Date(profile.createdAt).getTime() / 1000) : Math.floor(Date.now() / 1000),
+
+    // Export timestamp
+    exportedAt: Math.floor(Date.now() / 1000)
+  };
+
+  return encodeHC1(payload);
 }
 
 /**
