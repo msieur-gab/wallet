@@ -612,21 +612,30 @@ async function loadCredentialsPanel() {
                 `).join('') : '<p style="color: #9ca3af; font-size: 13px; margin: 0;">No claims data</p>'}
               </div>
 
-              <!-- QR Code Section -->
-              <div style="margin-top: 16px; text-align: center;">
-                <button
-                  onclick="handleCredentialQRClick(${index}, event)"
-                  class="btn btn-secondary"
-                  style="padding: 8px 16px; font-size: 13px;">
-                  Generate QR Code for Verification
-                </button>
-                <div id="credential-qr-${index}" style="margin-top: 12px; display: none;"></div>
+              <!-- QR Code Section - Auto-generated -->
+              <div style="margin-top: 24px; text-align: center;">
+                <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #374151;">
+                  Verification QR Code
+                </h4>
+                <div id="credential-qr-${index}" style="
+                  background: white;
+                  padding: 16px;
+                  border-radius: 8px;
+                  display: inline-block;
+                  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                "></div>
+                <p style="font-size: 12px; color: #6b7280; margin-top: 8px;">
+                  Scan this QR code to verify the credential
+                </p>
               </div>
             </div>
           </div>
         </div>
       `;
     }).join('');
+
+    // Track which QR codes have been generated
+    const qrGenerated = new Set();
 
     // Add click handlers for expansion
     credentials.forEach((cred, index) => {
@@ -635,18 +644,41 @@ async function loadCredentialsPanel() {
       const icon = container.querySelector(`.expand-icon-${index}`);
 
       if (card && details && icon) {
-        card.addEventListener('click', (e) => {
-          // Don't expand if clicking the QR button
-          if (e.target.closest('button')) return;
-
+        card.addEventListener('click', async (e) => {
           const isExpanded = details.style.maxHeight && details.style.maxHeight !== '0px';
 
           if (isExpanded) {
+            // Collapse
             details.style.maxHeight = '0px';
             icon.style.transform = 'rotate(0deg)';
           } else {
+            // Expand
             details.style.maxHeight = details.scrollHeight + 'px';
             icon.style.transform = 'rotate(90deg)';
+
+            // Auto-generate QR code on first expansion
+            if (!qrGenerated.has(index)) {
+              qrGenerated.add(index);
+
+              const qrContainer = document.getElementById(`credential-qr-${index}`);
+              if (qrContainer && cred.credentialJwt) {
+                try {
+                  // Generate QR code using the utility
+                  generateCredentialQR(cred.credentialJwt, qrContainer, {
+                    width: 280,
+                    height: 280
+                  });
+
+                  // Recalculate height after QR is added
+                  setTimeout(() => {
+                    details.style.maxHeight = details.scrollHeight + 'px';
+                  }, 100);
+                } catch (error) {
+                  console.error('Error generating QR code:', error);
+                  qrContainer.innerHTML = '<p style="color: #ef4444; font-size: 13px;">Failed to generate QR code</p>';
+                }
+              }
+            }
           }
         });
       }
@@ -656,49 +688,6 @@ async function loadCredentialsPanel() {
     container.innerHTML = `<p style="color: #ef4444;">Error loading credentials: ${error.message}</p>`;
   }
 }
-
-/**
- * Handle credential QR code generation button click
- * Uses the existing generateCredentialQR utility from utils/qrCode.js
- */
-async function handleCredentialQRClick(index, event) {
-  event.stopPropagation();
-
-  try {
-    const credentials = await getCredentials(currentUser);
-    const credential = credentials[index];
-
-    if (!credential) {
-      showMessage('Credential not found', 'error');
-      return;
-    }
-
-    const qrContainer = document.getElementById(`credential-qr-${index}`);
-
-    if (!qrContainer) {
-      showMessage('QR code container not found', 'error');
-      return;
-    }
-
-    // Show the QR container
-    qrContainer.style.display = 'block';
-
-    // Use the existing utility function with green branding
-    generateCredentialQR(credential.credentialJwt, qrContainer, {
-      width: 300,
-      height: 300
-    });
-
-    showMessage('QR code generated successfully!', 'success');
-
-  } catch (error) {
-    console.error('Error generating QR code:', error);
-    showMessage('Failed to generate QR code: ' + error.message, 'error');
-  }
-}
-
-// Make function globally available
-window.handleCredentialQRClick = handleCredentialQRClick;
 
 // ============================================================================
 // ZERO-KNOWLEDGE PANEL
