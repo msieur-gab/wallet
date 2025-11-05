@@ -8,9 +8,6 @@
 import { ed25519 } from '@noble/curves/ed25519';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { createVerifiableCredentialJwt } from 'did-jwt-vc';
-import { encode as cborEncode } from 'cbor2';
-import { encode as base45Encode } from 'base45';
-import pako from 'pako';
 
 // Text encoder for signing
 const enc = new TextEncoder();
@@ -36,40 +33,6 @@ function createSigner(privateKey) {
     const signature = await ed25519.sign(dataToSign, privateKey);
     return bytesToBase64url(signature);
   };
-}
-
-/**
- * Encode JWT as HC1 format for smaller QR codes
- *
- * This wraps the JWT (which includes the signature) in HC1 encoding
- * so it can be transferred with a smaller QR code while preserving
- * the cryptographic signature for verification.
- */
-function encodeJWTAsHC1(jwt) {
-  try {
-    // Create payload indicating this is a JWT transfer
-    const payload = {
-      type: 'JWT-VC', // JWT Verifiable Credential
-      jwt: jwt,
-      encodedAt: Math.floor(Date.now() / 1000)
-    };
-
-    // Step 1: Encode as CBOR (binary format)
-    const cborData = cborEncode(payload);
-
-    // Step 2: Compress with zlib
-    const compressed = pako.deflate(cborData);
-
-    // Step 3: Encode with Base45 (QR-optimized)
-    const base45Data = base45Encode(compressed);
-
-    // Step 4: Add HC1 prefix
-    return `HC1:${base45Data}`;
-
-  } catch (error) {
-    console.error('HC1 encoding failed:', error);
-    throw new Error(`HC1 encoding failed: ${error.message}`);
-  }
 }
 
 // Issuer profiles and their keys
@@ -380,9 +343,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Issue the credential
       const jwt = await issueCredential(recipientDid, credentialType, claims, expiresIn);
 
-      // Encode JWT as HC1 for smaller QR code
-      const hc1 = encodeJWTAsHC1(jwt);
-
       console.log('✅ Credential issued:', {
         issuer: currentIssuer.name,
         domain: currentIssuer.domain,
@@ -390,16 +350,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         credentialType,
         claims,
         expiresIn,
-        jwtLength: jwt.length,
-        hc1Length: hc1.length,
-        sizeReduction: `${(((jwt.length - hc1.length) / jwt.length) * 100).toFixed(1)}%`
+        jwtLength: jwt.length
       });
 
-      // Display HC1 (compact format for scanning)
-      jwtDisplay.textContent = hc1;
+      // Display JWT
+      jwtDisplay.textContent = jwt;
 
-      // Generate QR code with HC1 (smaller, more scannable)
-      generateQRCode(hc1, qrCanvas);
+      // Generate QR code
+      generateQRCode(jwt, qrCanvas);
 
       // Show result section
       resultDiv.style.display = 'block';
@@ -410,10 +368,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Setup copy button
       copyBtn.onclick = async () => {
         try {
-          await navigator.clipboard.writeText(hc1);
+          await navigator.clipboard.writeText(jwt);
           copyBtn.textContent = '✅ Copied!';
           setTimeout(() => {
-            copyBtn.textContent = '📋 Copy HC1 to Clipboard';
+            copyBtn.textContent = '📋 Copy JWT to Clipboard';
           }, 2000);
         } catch (err) {
           alert('Failed to copy to clipboard');

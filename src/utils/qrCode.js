@@ -1,7 +1,7 @@
 import QRCodeStyling from 'qr-code-styling';
 import { Html5Qrcode } from 'html5-qrcode';
 import { getPublicProfileForQR } from '../profile/profileManager.js';
-import { createHC1FromProfile, decodeHC1 } from './hc1.js';
+import { createHC1FromProfile } from './hc1.js';
 
 /**
  * QR Code Utilities
@@ -261,41 +261,7 @@ export class QRScanner {
  * Parse scanned QR data
  */
 export function parseQRData(data) {
-  // Check if it's HC1 format (most common now)
-  if (data.startsWith('HC1:')) {
-    try {
-      const decoded = decodeHC1(data);
-
-      // Check what type of HC1 data this is
-      if (decoded.type === 'JWT-VC') {
-        // This is a JWT credential wrapped in HC1 (from issuer)
-        return {
-          type: 'jwt',
-          data: decoded.jwt
-        };
-      } else if (decoded.type === 'IdentityWalletProfile') {
-        // This is a profile encoded as HC1
-        return {
-          type: 'profile',
-          data: decoded
-        };
-      } else {
-        // Other HC1 credential types
-        return {
-          type: 'hc1-credential',
-          data: decoded
-        };
-      }
-    } catch (e) {
-      console.error('Failed to decode HC1:', e);
-      return {
-        type: 'unknown',
-        data: data
-      };
-    }
-  }
-
-  // Try to parse as JSON (legacy profile or credential format)
+  // Try to parse as JSON (profile or credential)
   try {
     const parsed = JSON.parse(data);
 
