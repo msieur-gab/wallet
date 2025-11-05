@@ -615,17 +615,12 @@ async function loadCredentialsPanel() {
               <!-- QR Code Section -->
               <div style="margin-top: 16px; text-align: center;">
                 <button
-                  onclick="generateCredentialQR(${index}, event)"
+                  onclick="handleCredentialQRClick(${index}, event)"
                   class="btn btn-secondary"
                   style="padding: 8px 16px; font-size: 13px;">
                   Generate QR Code for Verification
                 </button>
-                <div id="credential-qr-${index}" style="margin-top: 12px; display: none;">
-                  <canvas id="credential-qr-canvas-${index}" style="max-width: 100%; height: auto;"></canvas>
-                  <p style="font-size: 12px; color: #6b7280; margin-top: 8px;">
-                    Scan this QR code to verify the credential
-                  </p>
-                </div>
+                <div id="credential-qr-${index}" style="margin-top: 12px; display: none;"></div>
               </div>
             </div>
           </div>
@@ -663,9 +658,10 @@ async function loadCredentialsPanel() {
 }
 
 /**
- * Generate QR code for a credential
+ * Handle credential QR code generation button click
+ * Uses the existing generateCredentialQR utility from utils/qrCode.js
  */
-async function generateCredentialQR(index, event) {
+async function handleCredentialQRClick(index, event) {
   event.stopPropagation();
 
   try {
@@ -678,61 +674,20 @@ async function generateCredentialQR(index, event) {
     }
 
     const qrContainer = document.getElementById(`credential-qr-${index}`);
-    const canvas = document.getElementById(`credential-qr-canvas-${index}`);
 
-    if (!qrContainer || !canvas) {
-      showMessage('QR code elements not found', 'error');
+    if (!qrContainer) {
+      showMessage('QR code container not found', 'error');
       return;
     }
 
     // Show the QR container
     qrContainer.style.display = 'block';
 
-    // Generate QR code using QRCodeStyling
-    const { default: QRCodeStyling } = await import('qr-code-styling');
-
-    const qrCode = new QRCodeStyling({
+    // Use the existing utility function with green branding
+    generateCredentialQR(credential.credentialJwt, qrContainer, {
       width: 300,
-      height: 300,
-      data: credential.credentialJwt,
-      image: '',
-      dotsOptions: {
-        color: '#059669',
-        type: 'rounded'
-      },
-      backgroundOptions: {
-        color: '#ffffff'
-      },
-      cornersSquareOptions: {
-        color: '#047857',
-        type: 'extra-rounded'
-      },
-      cornersDotOptions: {
-        color: '#047857',
-        type: 'dot'
-      },
-      imageOptions: {
-        crossOrigin: 'anonymous',
-        margin: 10
-      }
+      height: 300
     });
-
-    // Clear previous QR code
-    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-
-    // Append to canvas
-    qrCode.append(canvas.parentElement);
-    // Remove the extra div created by QRCodeStyling, keep only canvas
-    const qrDiv = canvas.parentElement.querySelector('div');
-    if (qrDiv) {
-      const qrCanvas = qrDiv.querySelector('canvas');
-      if (qrCanvas) {
-        canvas.getContext('2d').drawImage(qrCanvas, 0, 0);
-        canvas.width = 300;
-        canvas.height = 300;
-      }
-      qrDiv.remove();
-    }
 
     showMessage('QR code generated successfully!', 'success');
 
@@ -743,7 +698,7 @@ async function generateCredentialQR(index, event) {
 }
 
 // Make function globally available
-window.generateCredentialQR = generateCredentialQR;
+window.handleCredentialQRClick = handleCredentialQRClick;
 
 // ============================================================================
 // ZERO-KNOWLEDGE PANEL
