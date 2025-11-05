@@ -180,6 +180,17 @@ function setupEventListeners() {
   document.getElementById('editProfilePic').addEventListener('click', handleProfilePictureChange);
   document.getElementById('downloadQRBtn').addEventListener('click', handleDownloadQR);
 
+  // Export profile as text
+  document.getElementById('exportProfileTextBtn')?.addEventListener('click', handleExportProfileText);
+
+  // Contact actions
+  document.getElementById('importContactTextBtn')?.addEventListener('click', handleImportContactText);
+  document.getElementById('scanQRForContactBtn')?.addEventListener('click', handleScanQRForContact);
+
+  // Credential actions
+  document.getElementById('showIssueCredBtn')?.addEventListener('click', handleShowIssueCredential);
+  document.getElementById('showReceiveCredBtn')?.addEventListener('click', handleShowReceiveCredential);
+
   // Settings
   document.getElementById('exportWalletBtn').addEventListener('click', handleExportWallet);
   document.getElementById('importWalletBtn').addEventListener('click', handleImportWallet);
@@ -491,18 +502,78 @@ async function loadZKPanel() {
 // ============================================================================
 
 async function loadScanPanel() {
-  // Initialize QR scanner if not already done
-  // Note: QR scanning requires camera permissions
   const resultDiv = document.getElementById('scanResult');
+  const readerDiv = document.getElementById('qr-reader');
 
-  resultDiv.innerHTML = `
-    <div class="alert alert-info">
-      <strong>Scan QR Codes</strong> to add contacts or receive credentials.
-    </div>
-    <p style="margin-top: 16px; color: #6b7280;">
-      Camera access required for QR code scanning. Grant permission when prompted.
-    </p>
-  `;
+  // Initialize scanner if not already created
+  if (!qrScanner) {
+    const { QRScanner } = await import('./utils/qrCode.js');
+    qrScanner = new QRScanner('qr-reader');
+  }
+
+  // Stop previous scan if running
+  if (qrScanner.isScanning) {
+    await qrScanner.stop();
+  }
+
+  try {
+    // Start scanning
+    await qrScanner.start(
+      async (decodedText) => {
+        console.log('QR scanned:', decodedText);
+
+        // Stop scanning
+        await qrScanner.stop();
+
+        // Parse QR data
+        const { parseQRData } = await import('./utils/qrCode.js');
+        const parsed = parseQRData(decodedText);
+
+        if (parsed.type === 'profile') {
+          // Import as contact
+          try {
+            const { importContactFromProfile } = await import('./contacts/contactManager.js');
+            await importContactFromProfile(currentUser, decodedText);
+            showMessage('✅ Contact added from QR code!', 'success');
+            switchPanel('contacts');
+          } catch (error) {
+            resultDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+          }
+        } else if (parsed.type === 'jwt') {
+          // It's a credential
+          try {
+            const { receiveCredential } = await import('./credentials/credentialManager.js');
+            await receiveCredential(currentUser, parsed.data);
+            showMessage('✅ Credential received!', 'success');
+            switchPanel('credentials');
+          } catch (error) {
+            resultDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+          }
+        } else if (parsed.type === 'did') {
+          resultDiv.innerHTML = `<div class="alert alert-info">DID scanned: ${parsed.data}</div>`;
+        } else {
+          resultDiv.innerHTML = `<div class="alert alert-info">Unknown QR type. Data: ${decodedText.substring(0, 100)}...</div>`;
+        }
+      },
+      (error) => {
+        // Scan errors are normal (camera adjusting, no QR in view, etc.)
+        // Don't show these to avoid spam
+      }
+    );
+
+    resultDiv.innerHTML = '<div class="alert alert-info">📷 Camera active - point at QR code</div>';
+  } catch (error) {
+    console.error('Scanner error:', error);
+    resultDiv.innerHTML = `
+      <div class="alert alert-error">
+        ❌ Camera access denied or not available<br>
+        <small>${error.message}</small>
+      </div>
+      <p style="margin-top: 12px; font-size: 14px; color: #6b7280;">
+        Grant camera permission in your browser settings to scan QR codes.
+      </p>
+    `;
+  }
 }
 
 // ============================================================================
@@ -559,6 +630,126 @@ async function handleImportWallet() {
   });
 
   fileInput.click();
+}
+
+// ============================================================================
+// NEW HANDLERS - PROFILE & CONTACT SHARING
+// ============================================================================
+
+async function handleExportProfileText() {
+  try {
+    const { exportPublicProfile } = await import('./profile/profileManager.js');
+    const profileJson = await exportPublicProfile(currentUser);
+
+    // Copy to clipboard
+    await navigator.clipboard.writeText(profileJson);
+    showMessage('✅ Profile copied to clipboard! Share this text with friends.', 'success');
+  } catch (error) {
+    showMessage('Error exporting profile: ' + error.message, 'error');
+  }
+}
+
+async function handleImportContactText() {
+  const profileText = prompt('Paste your friend\'s profile JSON here:');
+  if (!profileText) return;
+
+  try {
+    const { importContactFromProfile } = await import('./contacts/contactManager.js');
+    await importContactFromProfile(currentUser, profileText);
+    showMessage('✅ Contact added successfully!', 'success');
+    await loadContactsPanel(); // Refresh list
+  } catch (error) {
+    showMessage('Error importing contact: ' + error.message, 'error');
+  }
+}
+
+async function handleScanQRForContact() {
+  // Switch to scan panel
+  switchPanel('scan');
+  showMessage('📱 Point your camera at friend\'s QR code', 'info');
+}
+
+async function handleShowIssueCredential() {
+  // For now, show a simple prompt-based interface
+  // TODO: Add proper modal in future
+  try {
+    const { getContacts } = await import('./contacts/contactManager.js');
+    const contacts = await getContacts(currentUser);
+
+    if (contacts.length === 0) {
+      return showMessage('No contacts found. Add contacts first!', 'error');
+    }
+
+    // Show contact selection
+    const contactsList = contacts.map((c, i) => `${i + 1}. ${c.contactName} (${c.contactDid.substring(0, 30)}...)`).join('\n');
+    const selection = prompt(`Select contact (enter number 1-${contacts.length}):\n\n${contactsList}`);
+
+    if (!selection) return;
+
+    const index = parseInt(selection) - 1;
+    if (index < 0 || index >= contacts.length) {
+      return showMessage('Invalid selection', 'error');
+    }
+
+    const contact = contacts[index];
+
+    // Get credential details
+    const credType = prompt('Credential Type (e.g., MembershipCredential):');
+    if (!credType) return;
+
+    const claimsText = prompt('Claims as JSON (e.g., {"role": "member", "level": "gold"}):');
+    if (!claimsText) return;
+
+    const expiryDays = prompt('Expires in how many days?', '365');
+    if (!expiryDays) return;
+
+    // Parse claims
+    let claims;
+    try {
+      claims = JSON.parse(claimsText);
+    } catch (e) {
+      return showMessage('Invalid JSON format for claims', 'error');
+    }
+
+    // Get password
+    const password = prompt('Enter your password to sign the credential:');
+    if (!password) return;
+
+    // Issue credential
+    const { issueCredential } = await import('./credentials/credentialManager.js');
+    const result = await issueCredential(currentUser, password, {
+      subjectDid: contact.contactDid,
+      type: credType,
+      claims,
+      expiresInDays: parseInt(expiryDays)
+    });
+
+    showMessage('✅ Credential issued successfully!', 'success');
+    await loadCredentialsPanel();
+
+    // Show JWT for sharing
+    prompt('Credential JWT (copy and share with recipient):', result.jwt);
+
+  } catch (error) {
+    showMessage('Error issuing credential: ' + error.message, 'error');
+  }
+}
+
+async function handleShowReceiveCredential() {
+  const jwt = prompt('Paste the Verifiable Credential JWT you received:');
+  if (!jwt) return;
+
+  try {
+    const { receiveCredential } = await import('./credentials/credentialManager.js');
+    const result = await receiveCredential(currentUser, jwt);
+
+    showMessage('✅ Credential verified and saved!', 'success');
+    await loadCredentialsPanel();
+
+    alert(`Credential received!\n\nType: ${result.type}\nIssuer: ${result.issuerDid.substring(0, 40)}...`);
+  } catch (error) {
+    showMessage('Credential verification failed: ' + error.message, 'error');
+  }
 }
 
 // ============================================================================
