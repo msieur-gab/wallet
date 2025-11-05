@@ -191,7 +191,10 @@ function setupEventListeners() {
   document.getElementById('showIssueCredBtn')?.addEventListener('click', handleShowIssueCredential);
   document.getElementById('showReceiveCredBtn')?.addEventListener('click', handleShowReceiveCredential);
 
-  // Settings
+  // Settings - Key backup
+  document.getElementById('copyDidBtn')?.addEventListener('click', handleCopyDid);
+  document.getElementById('exportKeysBtn')?.addEventListener('click', handleExportKeys);
+  document.getElementById('showRecoveryBtn')?.addEventListener('click', handleShowRecovery);
   document.getElementById('exportWalletBtn').addEventListener('click', handleExportWallet);
   document.getElementById('importWalletBtn').addEventListener('click', handleImportWallet);
 }
@@ -581,7 +584,15 @@ async function loadScanPanel() {
 // ============================================================================
 
 async function loadSettingsPanel() {
-  // Already loaded in HTML
+  // Display DID in settings
+  try {
+    const keys = await getUserKeys(currentUser);
+    if (keys && keys.did) {
+      document.getElementById('settingsDidDisplay').textContent = keys.did;
+    }
+  } catch (error) {
+    console.error('Error loading DID:', error);
+  }
 }
 
 async function handleExportWallet() {
@@ -630,6 +641,136 @@ async function handleImportWallet() {
   });
 
   fileInput.click();
+}
+
+async function handleCopyDid() {
+  try {
+    const keys = await getUserKeys(currentUser);
+    if (!keys || !keys.did) {
+      return showMessage('DID not found', 'error');
+    }
+
+    await navigator.clipboard.writeText(keys.did);
+    showMessage('✅ DID copied to clipboard!', 'success');
+  } catch (error) {
+    showMessage('Error copying DID: ' + error.message, 'error');
+  }
+}
+
+async function handleExportKeys() {
+  const password = prompt('Enter your password to export your encrypted keys:');
+  if (!password) return;
+
+  try {
+    const keys = await getUserKeys(currentUser);
+    if (!keys) {
+      return showMessage('Keys not found', 'error');
+    }
+
+    // Get encrypted key data from database
+    const { db } = await import('./db/database.js');
+    const keyData = await db.keys.where('username').equals(currentUser).first();
+
+    if (!keyData) {
+      return showMessage('Key data not found', 'error');
+    }
+
+    // Verify password by trying to load private key
+    const { loadPrivateKey } = await import('./crypto/keyManager.js');
+    await loadPrivateKey(currentUser, password);
+
+    // Export key data as JSON
+    const keyExport = {
+      version: 1,
+      type: 'IdentityWalletKeys',
+      username: currentUser,
+      did: keys.did,
+      publicKey: keys.publicKey,
+      encryptedPrivateKey: keyData.encryptedPrivateKey,
+      iv: keyData.iv,
+      salt: keyData.salt,
+      keyType: keyData.keyType,
+      exportedAt: Date.now(),
+      note: 'Keep this file secure! It contains your encrypted private keys.'
+    };
+
+    // Download as file
+    const blob = new Blob([JSON.stringify(keyExport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentUser}-keys-backup.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showMessage('✅ Keys exported! Keep this file safe!', 'success');
+  } catch (error) {
+    showMessage('Export failed: ' + error.message, 'error');
+  }
+}
+
+async function handleShowRecovery() {
+  const password = prompt('Enter your password to view recovery information:');
+  if (!password) return;
+
+  try {
+    const { loadPrivateKey } = await import('./crypto/keyManager.js');
+    const { privateKey, publicKey, did } = await loadPrivateKey(currentUser, password);
+
+    // Convert keys to hex for display
+    const privateKeyHex = Array.from(privateKey).map(b => b.toString(16).padStart(2, '0')).join('');
+    const publicKeyHex = Array.from(publicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+
+    const recoveryInfo = `
+╔══════════════════════════════════════════════════════════════╗
+║                  🔐 RECOVERY INFORMATION                     ║
+║          ⚠️  KEEP THIS INFORMATION SECURE  ⚠️                ║
+╚══════════════════════════════════════════════════════════════╝
+
+Username: ${currentUser}
+
+DID (Decentralized Identifier):
+${did}
+
+Public Key (Hex):
+${publicKeyHex}
+
+Private Key (Hex):
+${privateKeyHex}
+
+⚠️ WARNING:
+• Anyone with your private key can impersonate you!
+• Never share your private key with anyone
+• Store this information in a secure location
+• Consider writing it down on paper and storing in a safe
+
+💾 Recommended: Use "Download Encrypted Keys" instead
+   This keeps your private key encrypted with your password.
+    `.trim();
+
+    // Create a modal-like display
+    const textarea = document.createElement('textarea');
+    textarea.value = recoveryInfo;
+    textarea.style.cssText = 'width: 90%; height: 400px; margin: 20px auto; display: block; font-family: monospace; font-size: 11px; padding: 12px;';
+    textarea.readOnly = true;
+
+    const confirmed = confirm('⚠️ WARNING: This will display your PRIVATE KEY!\n\nYour private key allows complete control of your identity.\nOnly view in a secure, private location.\n\nDo you want to continue?');
+
+    if (!confirmed) return;
+
+    // Show in alert (not ideal but works)
+    alert(recoveryInfo);
+
+    // Also copy to clipboard with confirmation
+    const copy = confirm('Copy recovery information to clipboard?\n\n⚠️ Be careful where you paste this!');
+    if (copy) {
+      await navigator.clipboard.writeText(recoveryInfo);
+      showMessage('⚠️ Recovery info copied to clipboard', 'success');
+    }
+
+  } catch (error) {
+    showMessage('Failed to load recovery info: ' + error.message, 'error');
+  }
 }
 
 // ============================================================================

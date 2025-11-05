@@ -701,12 +701,29 @@
       <!-- Settings Panel -->
       <div id="settingsPanel" class="panel">
         <div class="card">
-          <h2>Settings</h2>
-          <div style="padding: 20px 0;">
-            <button id="exportWalletBtn" class="btn btn-primary" style="margin-bottom: 12px;">Export Wallet Backup</button>
-            <button id="importWalletBtn" class="btn btn-secondary" style="margin-bottom: 12px;">Import Wallet</button>
-            <button id="changePasswordBtn" class="btn btn-secondary" style="margin-bottom: 12px;">Change Password</button>
-            <button id="deleteAccountBtn" class="btn btn-danger">Delete Account</button>
+          <h2>🔐 Backup & Security</h2>
+          <div class="alert alert-info" style="margin-bottom: 20px;">
+            <strong>⚠️ Important:</strong> Always backup your keys! If you lose them, you lose access to your identity and credentials.
+          </div>
+
+          <h3 style="font-size: 16px; margin-bottom: 12px;">Your Identity</h3>
+          <div class="did-display" id="settingsDidDisplay" style="margin-bottom: 8px;">Loading...</div>
+          <button id="copyDidBtn" class="btn btn-secondary" style="margin-bottom: 24px;">📋 Copy DID</button>
+
+          <h3 style="font-size: 16px; margin-bottom: 12px;">Key Backup</h3>
+          <div style="padding: 12px 0;">
+            <button id="exportKeysBtn" class="btn btn-primary" style="margin-bottom: 12px; width: 100%;">💾 Download Encrypted Keys</button>
+            <button id="showRecoveryBtn" class="btn btn-secondary" style="margin-bottom: 12px; width: 100%;">🔑 Show Recovery Info</button>
+            <button id="exportWalletBtn" class="btn btn-primary" style="margin-bottom: 12px; width: 100%;">📦 Export Full Wallet Backup</button>
+          </div>
+
+          <hr style="margin: 24px 0; border: none; border-top: 1px solid var(--border);">
+
+          <h3 style="font-size: 16px; margin-bottom: 12px;">Account Actions</h3>
+          <div style="padding: 12px 0;">
+            <button id="importWalletBtn" class="btn btn-secondary" style="margin-bottom: 12px; width: 100%;">📂 Import Wallet</button>
+            <button id="changePasswordBtn" class="btn btn-secondary" style="margin-bottom: 12px; width: 100%;">🔒 Change Password</button>
+            <button id="deleteAccountBtn" class="btn btn-danger" style="width: 100%;">🗑️ Delete Account</button>
           </div>
         </div>
       </div>
