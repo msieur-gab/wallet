@@ -1,4 +1,25 @@
 {
   "note": "This file stores persistent DIDs and private keys for issuer profiles. Safe to commit for demo purposes.",
-  "keys": {}
+  "keys": {
+    "university": {
+      "privateKey": "0ba58b13d9c315a6654f6afe85cb223614198ca71fdbe73fc1ba35a2ee8d31a7",
+      "did": "did:key:z6MkiGZgrLQMmYAGjaGmLpFjdyDtWbb47btYJuR1cAwheJis"
+    },
+    "employer": {
+      "privateKey": "bdd8e1fa160a2a2fcc647939291182875ae7ea6e171a043d37cae5437f44a156",
+      "did": "did:key:z6Mkibc5TNNRPY25oH6oBt1M6KYK7a3QQTsFExvnTgTtCgzA"
+    },
+    "government": {
+      "privateKey": "a910d71f0b87efba88d17ab91bbe75402286901bb42263ab79c943041799433a",
+      "did": "did:key:z6Mkm8quT5D9xXDVQAQ5iQ6Y49DZKQTpAYxAWaAhCVengvMA"
+    },
+    "membership": {
+      "privateKey": "132daec92475efbd313af6ce92ee56fe8d52aaeebef57def2c484bd44f6e6b4d",
+      "did": "did:key:z6MkwHkhJTXxhfwYyAFYpwJZqD44ShdZstsJzU1AGvJUfnVV"
+    },
+    "health": {
+      "privateKey": "0c5586ce8fee4c1886dd475759f257825de11ae25698828bb8d64af37699b070",
+      "did": "did:key:z6MkpZLv4hJSpjJffJkUMfjDjqqSa8a6S3hqmbLc79bRvcqm"
+    }
+  }
 }
