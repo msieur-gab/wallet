@@ -8,7 +8,32 @@
 import { ed25519 } from '@noble/curves/ed25519';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { createVerifiableCredentialJwt } from 'did-jwt-vc';
-import { EdDSASigner } from 'did-jwt';
+
+// Text encoder for signing
+const enc = new TextEncoder();
+
+/**
+ * Convert bytes to base64url (for JWT signatures)
+ */
+function bytesToBase64url(bytes) {
+  let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * Create Ed25519 signer for did-jwt (compatible with wallet)
+ */
+function createSigner(privateKey) {
+  return async (data) => {
+    let dataToSign = data;
+    if (typeof data === 'string') {
+      dataToSign = enc.encode(data);
+    }
+    const signature = await ed25519.sign(dataToSign, privateKey);
+    return bytesToBase64url(signature);
+  };
+}
 
 // Issuer profiles and their keys
 let issuerProfiles = [];
@@ -55,13 +80,15 @@ async function initializeIssuer() {
         privateKeyHex = bytesToHex(privateKey);
 
         console.warn(`⚠️  Generated NEW keys for ${profile.name}`);
+        console.warn(`   Private key bytes: ${privateKey.length}`);
+        console.warn(`   Private key hex length: ${privateKeyHex.length}`);
         console.warn(`   Add to issuers.json:`);
         console.warn(`   "privateKey": "${privateKeyHex}",`);
         console.warn(`   "did": "${did}",`);
       }
 
-      // EdDSASigner expects hex string
-      const signer = EdDSASigner(privateKeyHex);
+      // Create signer compatible with wallet (uses Uint8Array)
+      const signer = createSigner(privateKey);
 
       issuerKeys[profile.id] = {
         privateKey,
@@ -211,13 +238,13 @@ async function issueCredential(recipientDid, credentialType, claims, expiresInDa
     }
   };
 
-  // Create the JWT using did-jwt-vc (same library as wallet!)
+  // Create the JWT using did-jwt-vc (same library and format as wallet!)
   const vcJwt = await createVerifiableCredentialJwt(
     vcPayload,
     {
       did: keys.did,
-      signer: keys.signer,
-      domain: currentIssuer.domain // Add verification domain
+      alg: 'EdDSA',
+      signer: keys.signer
     }
   );
 
