@@ -1,6 +1,6 @@
 import QRCodeStyling from 'qr-code-styling';
 import { Html5Qrcode } from 'html5-qrcode';
-import { exportPublicProfile } from '../profile/profileManager.js';
+import { getPublicProfileForQR } from '../profile/profileManager.js';
 
 /**
  * QR Code Utilities
@@ -15,8 +15,15 @@ import { exportPublicProfile } from '../profile/profileManager.js';
  * Generate QR code for user's public profile
  */
 export async function generateProfileQR(username, containerElement, options = {}) {
-  // Get public profile data
-  const profileJson = await exportPublicProfile(username);
+  // Get lightweight profile data (no image, for QR code)
+  const profileData = await getPublicProfileForQR(username);
+
+  const profileJson = JSON.stringify({
+    version: 1,
+    type: 'IdentityWalletProfile',
+    profile: profileData,
+    exportedAt: Date.now()
+  });
 
   // Create QR code
   const qr = new QRCodeStyling({

@@ -285,6 +285,26 @@ export async function getPublicProfile(username) {
 }
 
 /**
+ * Get public profile for QR code (lightweight, no image)
+ */
+export async function getPublicProfileForQR(username) {
+  const profile = await getProfile(username);
+  if (!profile) {
+    return null;
+  }
+
+  // Return minimal data for QR code (no profile picture - too large!)
+  return {
+    username: profile.username,
+    did: profile.did,
+    displayName: profile.displayName,
+    bio: profile.bio ? profile.bio.substring(0, 100) : '', // Truncate bio
+    publicKey: profile.publicKey
+    // Links omitted to keep QR code small
+  };
+}
+
+/**
  * Export profile as shareable JSON
  */
 export async function exportPublicProfile(username) {
