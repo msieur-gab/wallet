@@ -11,7 +11,7 @@
  */
 
 import { register, login, logout, getCurrentSession } from './auth/auth.js';
-import { generateKeyPair, getUserKeys, exportWallet, importWallet } from './crypto/keyManager.js';
+import { generateKeyPair, getUserKeys, exportWallet, importWallet, loadPrivateKey } from './crypto/keyManager.js';
 import {
   createProfile,
   getProfile,
@@ -746,8 +746,32 @@ async function loadCredentialsPanel() {
         // Clear existing QR
         qrContainer.innerHTML = '<p style="color: #6b7280; font-size: 13px;">Generating...</p>';
 
-        // Get appropriate JWT based on privacy mode
-        const jwt = await getCredentialJWT(currentUser, sessionPassword, cred, privacyMode);
+        let jwt;
+
+        // Privacy mode requires password for signing
+        if (privacyMode) {
+          // Check if we have the password
+          if (!sessionPassword) {
+            const password = prompt('Enter your password to create privacy-preserving credential:');
+            if (!password) {
+              qrContainer.innerHTML = '<p style="color: #9ca3af; font-size: 13px;">Cancelled</p>';
+              return;
+            }
+            // Verify password and store if correct
+            try {
+              await loadPrivateKey(currentUser, password);
+              sessionPassword = password; // Store for future use
+            } catch (error) {
+              qrContainer.innerHTML = '<p style="color: #ef4444; font-size: 13px;">Incorrect password</p>';
+              return;
+            }
+          }
+
+          jwt = await getCredentialJWT(currentUser, sessionPassword, cred, true);
+        } else {
+          // Full mode - use original JWT (no password needed)
+          jwt = cred.credentialJwt;
+        }
 
         // Generate QR code
         generateCredentialQR(jwt, qrContainer, {
