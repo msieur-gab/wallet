@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Personal Digital Identity Wallet with VC/VP and Zero-Knowledge support",
   "scripts": {
+    "start": "node server.js",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

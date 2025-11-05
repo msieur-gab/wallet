@@ -61,23 +61,47 @@ All sensitive operations happen **client-side**:
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ and npm
-- Modern web browser with IndexedDB support
+- Modern web browser with IndexedDB and Import Maps support
+- Simple HTTP server (Node.js, Python, or any static server)
 - Camera access (for QR scanning)
 
-### Installation
+### Quick Start (No Bundler Required!)
 
+**Option 1: Using Node.js**
 ```bash
 # Clone repository
 git clone <repo-url>
 cd wallet
 
+# Start server (no npm install needed!)
+npm start
+
+# Open http://localhost:3000
+```
+
+**Option 2: Using Python (Zero Dependencies)**
+```bash
+# Clone repository
+git clone <repo-url>
+cd wallet
+
+# Start server
+python3 -m http.server 3000
+
+# Open http://localhost:3000
+```
+
+**Option 3: Using Vite (Traditional)**
+```bash
 # Install dependencies
 npm install
 
 # Start development server
 npm run dev
 ```
+
+> 💡 **This app uses native ES modules with import maps - no build step required!**
+> See [NO-BUNDLER.md](./NO-BUNDLER.md) for detailed explanation.
 
 ### First Time Setup
 
