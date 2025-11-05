@@ -49,6 +49,64 @@
       margin-bottom: 24px;
     }
 
+    /* Tab Navigation */
+    .tab-navigation {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .tab-button {
+      flex: 1;
+      padding: 12px 24px;
+      border: none;
+      background: transparent;
+      color: #6b7280;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab-button:hover {
+      color: #047857;
+      background: #f0fdf4;
+    }
+
+    .tab-button.active {
+      color: #047857;
+      border-bottom-color: #047857;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* QR Scanner */
+    #qr-reader {
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    #qr-reader video {
+      border-radius: 8px;
+    }
+
+    .scanner-controls {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    /* Text Input */
     .input-section {
       margin-bottom: 24px;
     }
@@ -103,6 +161,10 @@
       background: #9ca3af;
       cursor: not-allowed;
       transform: none;
+    }
+
+    .button-secondary {
+      background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
     }
 
     .status-verifying,
@@ -275,6 +337,16 @@
       font-size: 13px;
       color: #78350f;
     }
+
+    .scan-status {
+      text-align: center;
+      padding: 16px;
+      background: #f0fdf4;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      color: #047857;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -285,26 +357,52 @@
     </header>
 
     <div class="card">
-      <div class="input-section">
-        <label for="hc1-input">Paste HC1 Credential Data</label>
-        <textarea
-          id="hc1-input"
-          placeholder="HC1:NCFOXN%TS3DH3AO9W5...&#10;&#10;Scan QR code from wallet and paste the HC1 data here"
-          spellcheck="false"
-        ></textarea>
-        <p class="helper-text">💡 The data should start with "HC1:" and contain Base45-encoded credential information</p>
+      <!-- Tab Navigation -->
+      <div class="tab-navigation">
+        <button class="tab-button active" data-tab="scan">
+          📷 Scan QR Code
+        </button>
+        <button class="tab-button" data-tab="paste">
+          📋 Paste Text
+        </button>
       </div>
 
-      <button class="button" id="verify-button">Verify Credential</button>
+      <!-- Scan Tab -->
+      <div class="tab-content active" id="scan-tab">
+        <div id="scan-status" class="scan-status" style="display: none;">
+          Ready to scan...
+        </div>
+        <div id="qr-reader"></div>
+        <div class="scanner-controls">
+          <button class="button" id="start-scan-button">Start Scanner</button>
+          <button class="button button-secondary" id="stop-scan-button" style="display: none;">Stop Scanner</button>
+        </div>
+        <p class="helper-text">📱 Point your camera at a credential QR code to verify instantly</p>
+      </div>
 
-      <div class="example-section">
-        <div class="example-title">How to verify credentials:</div>
-        <div class="example-text">
-          1. Open the Identity Wallet app<br>
-          2. Expand a credential card<br>
-          3. Use your phone camera to scan the QR code<br>
-          4. Copy the scanned text (starts with "HC1:")<br>
-          5. Paste it above and click "Verify Credential"
+      <!-- Paste Tab -->
+      <div class="tab-content" id="paste-tab">
+        <div class="input-section">
+          <label for="hc1-input">Paste HC1 Credential Data</label>
+          <textarea
+            id="hc1-input"
+            placeholder="HC1:NCFOXN%TS3DH3AO9W5...&#10;&#10;Scan QR code from wallet and paste the HC1 data here"
+            spellcheck="false"
+          ></textarea>
+          <p class="helper-text">💡 The data should start with "HC1:" and contain Base45-encoded credential information</p>
+        </div>
+
+        <button class="button" id="verify-button">Verify Credential</button>
+
+        <div class="example-section">
+          <div class="example-title">How to verify credentials:</div>
+          <div class="example-text">
+            1. Open the Identity Wallet app<br>
+            2. Expand a credential card<br>
+            3. Use your phone camera to scan the QR code<br>
+            4. Copy the scanned text (starts with "HC1:")<br>
+            5. Paste it above and click "Verify Credential"
+          </div>
         </div>
       </div>
     </div>
@@ -328,8 +426,116 @@
     </div>
   </div>
 
+  <script src="../node_modules/html5-qrcode/html5-qrcode.min.js"></script>
   <script type="module">
     import { verifyHC1Credential } from './verifier.js';
+
+    let html5QrCode = null;
+
+    // Tab switching
+    document.querySelectorAll('.tab-button').forEach(button => {
+      button.addEventListener('click', () => {
+        const tabName = button.getAttribute('data-tab');
+
+        // Update buttons
+        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+        button.classList.add('active');
+
+        // Update content
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById(`${tabName}-tab`).classList.add('active');
+
+        // Stop scanner if switching away from scan tab
+        if (tabName !== 'scan' && html5QrCode && html5QrCode.isScanning) {
+          stopScanner();
+        }
+      });
+    });
+
+    // QR Scanner functions
+    async function startScanner() {
+      const scanButton = document.getElementById('start-scan-button');
+      const stopButton = document.getElementById('stop-scan-button');
+      const scanStatus = document.getElementById('scan-status');
+
+      try {
+        scanButton.style.display = 'none';
+        stopButton.style.display = 'block';
+        scanStatus.style.display = 'block';
+        scanStatus.textContent = 'Starting camera...';
+
+        html5QrCode = new Html5Qrcode("qr-reader");
+
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+          },
+          onScanSuccess,
+          onScanFailure
+        );
+
+        scanStatus.textContent = '📷 Scanning... Point at QR code';
+      } catch (err) {
+        console.error('Failed to start scanner:', err);
+        scanStatus.textContent = '❌ Failed to start camera';
+        scanStatus.style.background = '#fee2e2';
+        scanStatus.style.color = '#991b1b';
+        scanButton.style.display = 'block';
+        stopButton.style.display = 'none';
+      }
+    }
+
+    async function stopScanner() {
+      const scanButton = document.getElementById('start-scan-button');
+      const stopButton = document.getElementById('stop-scan-button');
+      const scanStatus = document.getElementById('scan-status');
+
+      if (html5QrCode) {
+        try {
+          await html5QrCode.stop();
+          scanButton.style.display = 'block';
+          stopButton.style.display = 'none';
+          scanStatus.textContent = 'Scanner stopped';
+        } catch (err) {
+          console.error('Failed to stop scanner:', err);
+        }
+      }
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+      const scanStatus = document.getElementById('scan-status');
+
+      // Check if it's HC1 format
+      if (decodedText.startsWith('HC1:')) {
+        scanStatus.textContent = '✅ Credential detected! Verifying...';
+        scanStatus.style.background = '#dcfce7';
+        scanStatus.style.color = '#166534';
+
+        // Stop scanner
+        stopScanner();
+
+        // Show status and result containers
+        document.getElementById('verification-status').style.display = 'block';
+        document.getElementById('verification-result').style.display = 'block';
+
+        // Verify the credential
+        verifyHC1Credential(decodedText);
+      } else {
+        scanStatus.textContent = '⚠️ Not an HC1 credential. Keep scanning...';
+        scanStatus.style.background = '#fef3c7';
+        scanStatus.style.color = '#92400e';
+      }
+    }
+
+    function onScanFailure(error) {
+      // Ignore routine scan failures (no QR in frame)
+    }
+
+    // Scanner button handlers
+    document.getElementById('start-scan-button').addEventListener('click', startScanner);
+    document.getElementById('stop-scan-button').addEventListener('click', stopScanner);
 
     // Load verifier profiles
     async function loadVerifierProfiles() {
@@ -353,7 +559,7 @@
     // Initialize
     loadVerifierProfiles();
 
-    // Verify button click handler
+    // Verify button click handler (for paste tab)
     document.getElementById('verify-button').addEventListener('click', async () => {
       const input = document.getElementById('hc1-input').value.trim();
 
