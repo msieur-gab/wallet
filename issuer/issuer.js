@@ -1,32 +1,59 @@
 /**
- * Credential Issuer
+ * Credential Issuer - Multi-Profile System
  *
  * Generates and signs verifiable credentials compatible with the Identity Wallet
+ * Supports multiple issuer profiles with verification domains
  */
 
 import { ed25519 } from '@noble/curves/ed25519';
-import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
+import { createVerifiableCredentialJwt } from 'did-jwt-vc';
+import { EdDSASigner } from 'did-jwt';
 
-// Issuer's key pair (in production, load from secure storage/environment)
-let issuerPrivateKey;
-let issuerPublicKey;
-let issuerDid;
+// Issuer profiles and their keys
+let issuerProfiles = [];
+let currentIssuer = null;
+let issuerKeys = {}; // Map of issuer ID to {privateKey, publicKey, did, signer}
 
 /**
- * Initialize issuer identity
- * In production: Load private key from secure environment
+ * Initialize issuer system
  */
-function initializeIssuer() {
-  // Generate new keys (for demo - in production, load from secure storage)
-  issuerPrivateKey = ed25519.utils.randomPrivateKey();
-  issuerPublicKey = ed25519.getPublicKey(issuerPrivateKey);
-  issuerDid = createDidKey(issuerPublicKey);
+async function initializeIssuer() {
+  try {
+    // Load issuer profiles
+    const response = await fetch('./issuers.json');
+    const data = await response.json();
+    issuerProfiles = data.issuers;
 
-  console.log('🔑 Issuer initialized with DID:', issuerDid);
+    // Generate keys for each issuer profile
+    for (const profile of issuerProfiles) {
+      const privateKey = ed25519.utils.randomPrivateKey();
+      const publicKey = ed25519.getPublicKey(privateKey);
+      const did = createDidKey(publicKey);
+      const signer = EdDSASigner(privateKey);
 
-  // Display issuer DID in UI
-  document.getElementById('issuerDidDisplay').textContent = issuerDid;
+      issuerKeys[profile.id] = {
+        privateKey,
+        publicKey,
+        did,
+        signer
+      };
+
+      console.log(`🔑 Generated keys for ${profile.name}: ${did}`);
+    }
+
+    // Populate issuer selector
+    populateIssuerSelector();
+
+    // Select first issuer by default
+    if (issuerProfiles.length > 0) {
+      selectIssuer(issuerProfiles[0].id);
+    }
+
+  } catch (error) {
+    console.error('Failed to initialize issuer:', error);
+    alert('Failed to load issuer profiles. Check console for details.');
+  }
 }
 
 /**
@@ -62,53 +89,88 @@ function base58Encode(bytes) {
 }
 
 /**
- * Base64 URL encoding (JWT standard)
+ * Populate issuer selector dropdown
  */
-function base64UrlEncode(data) {
-  const bytes = typeof data === 'string'
-    ? new TextEncoder().encode(data)
-    : data;
+function populateIssuerSelector() {
+  const selector = document.getElementById('issuerSelector');
 
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+  selector.innerHTML = issuerProfiles.map(profile => `
+    <option value="${profile.id}">
+      ${profile.logo} ${profile.name} (${profile.domain})
+    </option>
+  `).join('');
+
+  selector.addEventListener('change', (e) => {
+    selectIssuer(e.target.value);
+  });
 }
 
 /**
- * Create and sign JWT
+ * Select an issuer profile
  */
-function createJWT(payload) {
-  const header = {
-    alg: 'EdDSA',
-    typ: 'JWT'
-  };
+function selectIssuer(issuerId) {
+  currentIssuer = issuerProfiles.find(p => p.id === issuerId);
+  if (!currentIssuer) return;
 
-  const encodedHeader = base64UrlEncode(JSON.stringify(header));
-  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
-  const message = `${encodedHeader}.${encodedPayload}`;
+  const keys = issuerKeys[issuerId];
 
-  // Sign message
-  const messageBytes = new TextEncoder().encode(message);
-  const messageHash = sha256(messageBytes);
-  const signature = ed25519.sign(messageHash, issuerPrivateKey);
-  const encodedSignature = base64UrlEncode(signature);
+  // Update UI
+  document.getElementById('issuerName').textContent = currentIssuer.name;
+  document.getElementById('issuerDomain').textContent = currentIssuer.domain;
+  document.getElementById('issuerDescription').textContent = currentIssuer.description;
+  document.getElementById('issuerDid').textContent = keys.did;
 
-  return `${message}.${encodedSignature}`;
+  // Populate credential types
+  populateCredentialTypes();
 }
 
 /**
- * Issue a verifiable credential
+ * Populate credential type dropdown
+ */
+function populateCredentialTypes() {
+  const selector = document.getElementById('credentialType');
+
+  selector.innerHTML = currentIssuer.credentialTypes.map(ct => `
+    <option value="${ct.type}">${ct.name}</option>
+  `).join('');
+
+  // Update example claims when type changes
+  selector.addEventListener('change', (e) => {
+    updateExampleClaims(e.target.value);
+  });
+
+  // Load first type's example
+  if (currentIssuer.credentialTypes.length > 0) {
+    updateExampleClaims(currentIssuer.credentialTypes[0].type);
+  }
+}
+
+/**
+ * Update example claims based on selected credential type
+ */
+function updateExampleClaims(credentialType) {
+  const credType = currentIssuer.credentialTypes.find(ct => ct.type === credentialType);
+  if (!credType) return;
+
+  // Show description
+  document.getElementById('credentialDescription').textContent = credType.description;
+
+  // Fill in example claims
+  document.getElementById('claims').value = JSON.stringify(credType.exampleClaims, null, 2);
+}
+
+/**
+ * Issue a verifiable credential using did-jwt-vc
  */
 async function issueCredential(recipientDid, credentialType, claims, expiresInDays) {
+  const keys = issuerKeys[currentIssuer.id];
   const now = Math.floor(Date.now() / 1000);
   const expirationTime = now + (expiresInDays * 24 * 60 * 60);
 
-  // W3C Verifiable Credential payload
+  // Create verifiable credential payload
   const vcPayload = {
-    iss: issuerDid,
     sub: recipientDid,
-    iat: now,
+    nbf: now,
     exp: expirationTime,
     vc: {
       '@context': ['https://www.w3.org/2018/credentials/v1'],
@@ -116,17 +178,21 @@ async function issueCredential(recipientDid, credentialType, claims, expiresInDa
       credentialSubject: {
         id: recipientDid,
         ...claims
-      },
-      issuer: {
-        id: issuerDid,
-        name: 'Demo Credential Issuer'
-      },
-      issuanceDate: new Date(now * 1000).toISOString(),
-      expirationDate: new Date(expirationTime * 1000).toISOString()
+      }
     }
   };
 
-  return createJWT(vcPayload);
+  // Create the JWT using did-jwt-vc (same library as wallet!)
+  const vcJwt = await createVerifiableCredentialJwt(
+    vcPayload,
+    {
+      did: keys.did,
+      signer: keys.signer,
+      domain: currentIssuer.domain // Add verification domain
+    }
+  );
+
+  return vcJwt;
 }
 
 /**
@@ -134,43 +200,30 @@ async function issueCredential(recipientDid, credentialType, claims, expiresInDa
  */
 function generateQRCode(text, canvas) {
   const size = 300;
-  const qrSize = Math.ceil(Math.sqrt(text.length * 8 / 2956)); // Estimate QR version
-  const moduleCount = 21 + (qrSize - 1) * 4;
-  const moduleSize = size / moduleCount;
 
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
 
-  // Clear canvas
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, size, size);
-
-  // Simple QR code generation (basic implementation)
-  // For production, use a proper QR library like qr-code-styling
-  ctx.fillStyle = '#000000';
-  ctx.font = '12px monospace';
-
-  // Draw text fallback (for demo - replace with proper QR library in production)
+  // Draw placeholder
   ctx.fillStyle = '#059669';
   ctx.fillRect(0, 0, size, size);
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 16px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('QR Code', size / 2, size / 2 - 40);
+  ctx.fillText('QR Code Placeholder', size / 2, size / 2 - 40);
   ctx.font = '12px sans-serif';
-  ctx.fillText('Install qr-code-styling', size / 2, size / 2);
-  ctx.fillText('for full QR generation', size / 2, size / 2 + 20);
-  ctx.fillText('(Copy JWT instead)', size / 2, size / 2 + 40);
+  ctx.fillText('Copy JWT instead', size / 2, size / 2);
+  ctx.fillText('(QR library not loaded)', size / 2, size / 2 + 20);
 }
 
 // ============================================================================
 // EVENT HANDLERS
 // ============================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-  initializeIssuer();
+document.addEventListener('DOMContentLoaded', async () => {
+  await initializeIssuer();
 
   const issueBtn = document.getElementById('issueBtn');
   const resultDiv = document.getElementById('result');
@@ -219,6 +272,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const jwt = await issueCredential(recipientDid, credentialType, claims, expiresIn);
 
       console.log('✅ Credential issued:', {
+        issuer: currentIssuer.name,
+        domain: currentIssuer.domain,
         recipientDid,
         credentialType,
         claims,
@@ -260,12 +315,4 @@ document.addEventListener('DOMContentLoaded', () => {
       issueBtn.textContent = '🎫 Issue Credential';
     }
   });
-
-  // Populate example data for testing
-  document.getElementById('claims').value = JSON.stringify({
-    name: 'John Doe',
-    memberSince: '2024',
-    level: 'gold',
-    verified: true
-  }, null, 2);
 });

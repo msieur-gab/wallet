@@ -1,0 +1,140 @@
+{
+  "issuers": [
+    {
+      "id": "university",
+      "name": "Global University",
+      "domain": "university.example.org",
+      "description": "Accredited educational institution issuing academic credentials",
+      "logo": "🎓",
+      "credentialTypes": [
+        {
+          "type": "EducationCredential",
+          "name": "Education Credential",
+          "description": "Academic degrees and certifications",
+          "exampleClaims": {
+            "degree": "Bachelor of Science",
+            "major": "Computer Science",
+            "graduationDate": "2024-05-15",
+            "gpa": "3.8",
+            "honors": "Cum Laude"
+          }
+        },
+        {
+          "type": "CertificationCredential",
+          "name": "Certification",
+          "description": "Professional certifications and courses",
+          "exampleClaims": {
+            "certificationName": "AWS Certified Solutions Architect",
+            "certificationDate": "2024-03-20",
+            "expirationDate": "2027-03-20",
+            "certificationId": "AWS-12345"
+          }
+        }
+      ]
+    },
+    {
+      "id": "employer",
+      "name": "Tech Corp Inc.",
+      "domain": "techcorp.example.com",
+      "description": "Technology company issuing employment credentials",
+      "logo": "💼",
+      "credentialTypes": [
+        {
+          "type": "EmploymentCredential",
+          "name": "Employment Verification",
+          "description": "Employment history and position verification",
+          "exampleClaims": {
+            "jobTitle": "Senior Software Engineer",
+            "department": "Engineering",
+            "startDate": "2020-01-15",
+            "endDate": "2024-06-30",
+            "employeeId": "EMP-54321"
+          }
+        },
+        {
+          "type": "SkillCredential",
+          "name": "Skill Endorsement",
+          "description": "Verified professional skills",
+          "exampleClaims": {
+            "skill": "React Development",
+            "level": "Expert",
+            "yearsOfExperience": 5,
+            "endorsedBy": "Jane Smith, Engineering Manager"
+          }
+        }
+      ]
+    },
+    {
+      "id": "government",
+      "name": "Digital Identity Authority",
+      "domain": "identity.gov.example",
+      "description": "Government agency issuing identity credentials",
+      "logo": "🏛️",
+      "credentialTypes": [
+        {
+          "type": "AgeCredential",
+          "name": "Age Verification",
+          "description": "Proof of age without revealing full identity",
+          "exampleClaims": {
+            "over18": true,
+            "over21": true,
+            "verifiedDate": "2024-11-05"
+          }
+        },
+        {
+          "type": "ResidencyCredential",
+          "name": "Residency Proof",
+          "description": "Proof of residency",
+          "exampleClaims": {
+            "country": "United States",
+            "state": "California",
+            "verifiedDate": "2024-11-05"
+          }
+        }
+      ]
+    },
+    {
+      "id": "membership",
+      "name": "Professional Association",
+      "domain": "association.example.org",
+      "description": "Professional membership organization",
+      "logo": "🏅",
+      "credentialTypes": [
+        {
+          "type": "MembershipCredential",
+          "name": "Membership Card",
+          "description": "Organization membership proof",
+          "exampleClaims": {
+            "memberSince": "2020",
+            "membershipLevel": "Gold",
+            "membershipId": "MEM-99887",
+            "expirationDate": "2025-12-31",
+            "benefits": ["Conference Access", "Newsletter", "Networking Events"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "health",
+      "name": "Health Services Authority",
+      "domain": "health.example.org",
+      "description": "Healthcare organization issuing health-related credentials",
+      "logo": "⚕️",
+      "credentialTypes": [
+        {
+          "type": "VaccinationCredential",
+          "name": "Vaccination Record",
+          "description": "Proof of vaccination",
+          "exampleClaims": {
+            "vaccineName": "COVID-19 Vaccine",
+            "manufacturer": "Pfizer-BioNTech",
+            "doseNumber": 2,
+            "dateAdministered": "2024-03-15",
+            "lotNumber": "ABC123",
+            "administeredBy": "Dr. Smith"
+          }
+        }
+      ]
+    }
+  ]
+}
