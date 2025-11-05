@@ -64,6 +64,16 @@ export async function generateProfileQR(username, containerElement, options = {}
   if (containerElement) {
     containerElement.innerHTML = '';
     qr.append(containerElement);
+
+    // Make QR code responsive
+    setTimeout(() => {
+      const qrElement = containerElement.querySelector('canvas, svg');
+      if (qrElement) {
+        qrElement.style.maxWidth = '100%';
+        qrElement.style.height = 'auto';
+        qrElement.style.width = '100%';
+      }
+    }, 0);
   }
 
   return qr;
@@ -99,6 +109,16 @@ export function generateDidQR(did, containerElement, options = {}) {
   if (containerElement) {
     containerElement.innerHTML = '';
     qr.append(containerElement);
+
+    // Make QR code responsive
+    setTimeout(() => {
+      const qrElement = containerElement.querySelector('canvas, svg');
+      if (qrElement) {
+        qrElement.style.maxWidth = '100%';
+        qrElement.style.height = 'auto';
+        qrElement.style.width = '100%';
+      }
+    }, 0);
   }
 
   return qr;
@@ -145,6 +165,16 @@ export function generateCredentialQR(hc1Data, containerElement, options = {}) {
   if (containerElement) {
     containerElement.innerHTML = '';
     qr.append(containerElement);
+
+    // Make QR code responsive - find the canvas/svg and add responsive styles
+    setTimeout(() => {
+      const qrElement = containerElement.querySelector('canvas, svg');
+      if (qrElement) {
+        qrElement.style.maxWidth = '100%';
+        qrElement.style.height = 'auto';
+        qrElement.style.width = '100%';
+      }
+    }, 0);
   }
 
   return qr;

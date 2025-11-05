@@ -689,14 +689,20 @@ async function loadCredentialsPanel() {
                 <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #374151;">
                   Verification QR Code
                 </h4>
-                <div id="credential-qr-${index}" style="
-                  background: white;
-                  padding: 16px;
-                  border-radius: 8px;
-                  display: inline-block;
-                  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                  min-height: 300px;
-                "></div>
+                <div class="qr-container-wrapper" style="
+                  display: flex;
+                  justify-content: center;
+                  width: 100%;
+                ">
+                  <div id="credential-qr-${index}" style="
+                    background: white;
+                    padding: 16px;
+                    border-radius: 8px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                    max-width: 500px;
+                    width: 100%;
+                  "></div>
+                </div>
                 <p style="font-size: 12px; color: #6b7280; margin-top: 8px;">
                   Scan this QR code to verify the credential
                 </p>
@@ -769,8 +775,15 @@ async function loadCredentialsPanel() {
         // Encode as HC1 (compact, scannable format)
         const hc1String = createHC1FromCredential(credentialForEncoding);
 
+        // Calculate responsive QR size (max 500px, scales down on mobile)
+        const containerWidth = qrContainer.offsetWidth - 32; // Subtract padding
+        const qrSize = Math.min(500, containerWidth);
+
         // Generate QR code with HC1 data
-        generateCredentialQR(hc1String, qrContainer);
+        generateCredentialQR(hc1String, qrContainer, {
+          width: qrSize,
+          height: qrSize
+        });
 
         // Show size comparison (for educational purposes)
         if (cred.credentialJwt) {
