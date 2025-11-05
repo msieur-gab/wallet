@@ -16,6 +16,7 @@ export class IdentityWalletDB extends Dexie {
   constructor() {
     super('IdentityWalletDB');
 
+    // Version 1 - Initial schema
     this.version(1).stores({
       // User account - username is primary key
       user: 'username, passwordHash, salt, createdAt',
@@ -40,6 +41,12 @@ export class IdentityWalletDB extends Dexie {
 
       // Activity log for audit trail
       activityLog: '++id, username, action, details, timestamp'
+    });
+
+    // Version 2 - Add compound indexes for contacts
+    this.version(2).stores({
+      // Contacts now has compound index [username+contactDid] for efficient lookups
+      contacts: '++id, [username+contactDid], username, contactDid, contactName, contactPublicKey, addedAt, tags, notes, trusted'
     });
 
     // Define table shortcuts
