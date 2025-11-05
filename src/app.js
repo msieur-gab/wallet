@@ -534,23 +534,216 @@ async function loadCredentialsPanel() {
       return;
     }
 
-    container.innerHTML = credentials.map(cred => `
-      <div class="credential-item">
-        <div class="credential-type">${cred.credentialType}</div>
-        <div class="credential-meta">
-          ${cred.direction === 'issued' ? 'Issued to' : 'Received from'}: ${cred.direction === 'issued' ? cred.subjectDid.substring(0, 30) : cred.issuerDid.substring(0, 30)}...
+    container.innerHTML = credentials.map((cred, index) => {
+      const isVerified = cred.status === 'active' && cred.direction === 'received';
+      const claimsEntries = Object.entries(cred.claims || {}).filter(([key]) => key !== 'id');
+
+      return `
+        <div class="credential-card" data-credential-index="${index}" style="
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+        " onmouseover="this.style.borderColor='#059669'; this.style.boxShadow='0 4px 6px rgba(5, 150, 105, 0.1)'"
+           onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+
+          <!-- Header -->
+          <div style="display: flex; align-items: start; justify-content: space-between;">
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                ${isVerified ? `
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="m9 12 2 2 4-4"/>
+                  </svg>
+                ` : ''}
+                <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #111827;">
+                  ${cred.credentialType}
+                </h3>
+              </div>
+              <div style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
+                ${cred.direction === 'issued' ? 'Issued to' : 'Issued by'}:
+                ${cred.direction === 'issued' ? cred.subjectDid.substring(0, 25) : cred.issuerDid.substring(0, 25)}...
+              </div>
+            </div>
+            <div style="font-size: 20px; color: #9ca3af; transition: transform 0.2s;" class="expand-icon-${index}">
+              ›
+            </div>
+          </div>
+
+          <!-- Badges -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <span class="badge ${cred.status === 'active' ? 'badge-success' : 'badge-danger'}">
+              ${cred.status}
+            </span>
+            <span class="badge badge-info">
+              ${new Date(cred.issuedAt).toLocaleDateString()}
+            </span>
+            ${cred.expiresAt ? `
+              <span class="badge" style="background: #f59e0b; color: white;">
+                Expires ${new Date(cred.expiresAt).toLocaleDateString()}
+              </span>
+            ` : ''}
+          </div>
+
+          <!-- Expandable Content -->
+          <div class="credential-details-${index}" style="
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+          ">
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+              <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #374151;">
+                Credential Claims
+              </h4>
+              <div style="background: #f9fafb; border-radius: 8px; padding: 12px;">
+                ${claimsEntries.length > 0 ? claimsEntries.map(([key, value]) => `
+                  <div style="display: flex; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
+                    <div style="flex: 1; font-weight: 500; color: #6b7280; font-size: 13px;">
+                      ${key}:
+                    </div>
+                    <div style="flex: 2; color: #111827; font-size: 13px;">
+                      ${typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
+                    </div>
+                  </div>
+                `).join('') : '<p style="color: #9ca3af; font-size: 13px; margin: 0;">No claims data</p>'}
+              </div>
+
+              <!-- QR Code Section -->
+              <div style="margin-top: 16px; text-align: center;">
+                <button
+                  onclick="generateCredentialQR(${index}, event)"
+                  class="btn btn-secondary"
+                  style="padding: 8px 16px; font-size: 13px;">
+                  Generate QR Code for Verification
+                </button>
+                <div id="credential-qr-${index}" style="margin-top: 12px; display: none;">
+                  <canvas id="credential-qr-canvas-${index}" style="max-width: 100%; height: auto;"></canvas>
+                  <p style="font-size: 12px; color: #6b7280; margin-top: 8px;">
+                    Scan this QR code to verify the credential
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div style="margin-top: 8px;">
-          <span class="badge ${cred.status === 'active' ? 'badge-success' : 'badge-danger'}">${cred.status}</span>
-          <span class="badge badge-info">${new Date(cred.issuedAt).toLocaleDateString()}</span>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
+
+    // Add click handlers for expansion
+    credentials.forEach((cred, index) => {
+      const card = container.querySelector(`[data-credential-index="${index}"]`);
+      const details = container.querySelector(`.credential-details-${index}`);
+      const icon = container.querySelector(`.expand-icon-${index}`);
+
+      if (card && details && icon) {
+        card.addEventListener('click', (e) => {
+          // Don't expand if clicking the QR button
+          if (e.target.closest('button')) return;
+
+          const isExpanded = details.style.maxHeight && details.style.maxHeight !== '0px';
+
+          if (isExpanded) {
+            details.style.maxHeight = '0px';
+            icon.style.transform = 'rotate(0deg)';
+          } else {
+            details.style.maxHeight = details.scrollHeight + 'px';
+            icon.style.transform = 'rotate(90deg)';
+          }
+        });
+      }
+    });
 
   } catch (error) {
     container.innerHTML = `<p style="color: #ef4444;">Error loading credentials: ${error.message}</p>`;
   }
 }
+
+/**
+ * Generate QR code for a credential
+ */
+async function generateCredentialQR(index, event) {
+  event.stopPropagation();
+
+  try {
+    const credentials = await getCredentials(currentUser);
+    const credential = credentials[index];
+
+    if (!credential) {
+      showMessage('Credential not found', 'error');
+      return;
+    }
+
+    const qrContainer = document.getElementById(`credential-qr-${index}`);
+    const canvas = document.getElementById(`credential-qr-canvas-${index}`);
+
+    if (!qrContainer || !canvas) {
+      showMessage('QR code elements not found', 'error');
+      return;
+    }
+
+    // Show the QR container
+    qrContainer.style.display = 'block';
+
+    // Generate QR code using QRCodeStyling
+    const { default: QRCodeStyling } = await import('qr-code-styling');
+
+    const qrCode = new QRCodeStyling({
+      width: 300,
+      height: 300,
+      data: credential.credentialJwt,
+      image: '',
+      dotsOptions: {
+        color: '#059669',
+        type: 'rounded'
+      },
+      backgroundOptions: {
+        color: '#ffffff'
+      },
+      cornersSquareOptions: {
+        color: '#047857',
+        type: 'extra-rounded'
+      },
+      cornersDotOptions: {
+        color: '#047857',
+        type: 'dot'
+      },
+      imageOptions: {
+        crossOrigin: 'anonymous',
+        margin: 10
+      }
+    });
+
+    // Clear previous QR code
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+
+    // Append to canvas
+    qrCode.append(canvas.parentElement);
+    // Remove the extra div created by QRCodeStyling, keep only canvas
+    const qrDiv = canvas.parentElement.querySelector('div');
+    if (qrDiv) {
+      const qrCanvas = qrDiv.querySelector('canvas');
+      if (qrCanvas) {
+        canvas.getContext('2d').drawImage(qrCanvas, 0, 0);
+        canvas.width = 300;
+        canvas.height = 300;
+      }
+      qrDiv.remove();
+    }
+
+    showMessage('QR code generated successfully!', 'success');
+
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    showMessage('Failed to generate QR code: ' + error.message, 'error');
+  }
+}
+
+// Make function globally available
+window.generateCredentialQR = generateCredentialQR;
 
 // ============================================================================
 // ZERO-KNOWLEDGE PANEL
