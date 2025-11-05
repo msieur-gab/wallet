@@ -140,6 +140,10 @@ export async function receiveCredential(username, jwt, options = {}) {
   const issuerDid = verified.issuer;
   const subjectDid = payload.sub || vc.credentialSubject.id;
 
+  // Extract issuer name and domain from VC (if provided by issuer)
+  const issuerName = vc.issuerName || 'Unknown Issuer';
+  const issuerDomain = vc.issuerDomain || '';
+
   // Check if credential already exists
   const existing = await db.credentials
     .where('credentialJwt')
@@ -159,6 +163,8 @@ export async function receiveCredential(username, jwt, options = {}) {
     credentialJwt: jwt,
     credentialType,
     issuerDid,
+    issuerName,
+    issuerDomain,
     subjectDid,
     claims: vc.credentialSubject,
     issuedAt: (payload.nbf || payload.iat) * 1000,

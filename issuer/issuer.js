@@ -247,7 +247,10 @@ async function issueCredential(recipientDid, credentialType, claims, expiresInDa
       credentialSubject: {
         id: recipientDid,
         ...claims
-      }
+      },
+      // Include issuer information for display purposes
+      issuerName: currentIssuer.name,
+      issuerDomain: currentIssuer.domain
     }
   };
 
