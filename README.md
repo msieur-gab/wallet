@@ -143,6 +143,8 @@ npm run dev
 
 ## 🔒 Zero-Knowledge Features
 
+> **Note:** This implementation uses **application-level selective disclosure** rather than cryptographic zero-knowledge proofs (ZK-SNARKs). It creates derived credentials with boolean claims (e.g., "over18: true") instead of revealing exact values (e.g., "age: 27"). This provides practical privacy for most use cases without the complexity of ZK-SNARK circuits.
+
 ### Range Proofs
 Prove numeric values are within a range without revealing exact values:
 - Age verification (over 18, over 21, etc.)
