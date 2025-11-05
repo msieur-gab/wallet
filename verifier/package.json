@@ -1,0 +1,14 @@
+{
+  "name": "credential-verifier",
+  "version": "1.0.0",
+  "description": "Verifiable Credential verification service for restaurants, hospitals, and other organizations",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "did-jwt-vc": "^3.2.0",
+    "did-resolver": "^4.1.0",
+    "key-did-resolver": "^3.0.0"
+  }
+}

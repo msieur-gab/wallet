@@ -1,0 +1,69 @@
+{
+  "verifiers": [
+    {
+      "id": "restaurant",
+      "name": "Restaurant / Public Place",
+      "icon": "🍽️",
+      "description": "Restaurants, museums, theaters, public transportation",
+      "purpose": "Basic verification for entry/access",
+      "acceptedTypes": [
+        "VaccinationCredential",
+        "AgeCredential",
+        "MembershipCredential"
+      ],
+      "note": "Users should share minimal claims with public verifiers"
+    },
+    {
+      "id": "medical",
+      "name": "Medical Facility",
+      "icon": "🏥",
+      "description": "Hospitals, clinics, healthcare providers",
+      "purpose": "Medical records verification",
+      "acceptedTypes": [
+        "VaccinationCredential",
+        "MembershipCredential"
+      ],
+      "note": "May need full details for medical records"
+    },
+    {
+      "id": "government",
+      "name": "Government Agency",
+      "icon": "🏛️",
+      "description": "Government offices, law enforcement, border control",
+      "purpose": "Official identity verification",
+      "acceptedTypes": [
+        "AgeCredential",
+        "ResidencyCredential",
+        "EducationCredential",
+        "EmploymentCredential"
+      ],
+      "note": "May need full details for official processes"
+    },
+    {
+      "id": "employer",
+      "name": "Employer / HR Department",
+      "icon": "💼",
+      "description": "Companies verifying employment or education credentials",
+      "purpose": "Background check and credential verification",
+      "acceptedTypes": [
+        "EducationCredential",
+        "CertificationCredential",
+        "EmploymentCredential",
+        "SkillCredential"
+      ],
+      "note": "Verify qualifications for employment"
+    },
+    {
+      "id": "educational",
+      "name": "Educational Institution",
+      "icon": "🎓",
+      "description": "Universities, schools, training centers",
+      "purpose": "Academic credential verification",
+      "acceptedTypes": [
+        "EducationCredential",
+        "CertificationCredential"
+      ],
+      "note": "Verify academic records for admissions"
+    }
+  ]
+}

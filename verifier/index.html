@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Credential Verifier</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      min-height: 100vh;
+      padding: 24px;
+      color: #111827;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 24px;
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .header-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .subtitle {
+      color: #6b7280;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 24px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+
+    select, input, textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    select:focus, input:focus, textarea:focus {
+      outline: none;
+      border-color: #059669;
+      box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 12px;
+    }
+
+    .verifier-info {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+
+    .verifier-info-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .verifier-info-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .verifier-info-label {
+      font-weight: 600;
+      color: #374151;
+      min-width: 80px;
+    }
+
+    .verifier-info-value {
+      color: #6b7280;
+      flex: 1;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(5, 150, 105, 0.2);
+    }
+
+    .button:active {
+      transform: translateY(0);
+    }
+
+    .button-secondary {
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .button-secondary:hover {
+      background: #e5e7eb;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .button-danger {
+      background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    }
+
+    .button-danger:hover {
+      box-shadow: 0 4px 6px rgba(220, 38, 38, 0.2);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    #scannerContainer {
+      display: none;
+      margin-top: 20px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid #059669;
+    }
+
+    #qrVideo {
+      width: 100%;
+      display: block;
+      background: #000;
+    }
+
+    .scanner-help {
+      background: #fef3c7;
+      border: 1px solid #fde047;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #92400e;
+    }
+
+    #verificationResult {
+      display: none;
+    }
+
+    .result-container {
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 20px;
+      border: 2px solid;
+    }
+
+    .result-success {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+
+    .result-error {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+
+    .result-verifying {
+      background: #f9fafb;
+      border-color: #d1d5db;
+    }
+
+    #resultMessage {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .credential-info {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    .info-value {
+      color: #111827;
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .text-error {
+      color: #dc2626;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-privacy {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .claims-section {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .claims-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .claim-item {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .claim-key {
+      font-weight: 600;
+      color: #059669;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .claim-value {
+      color: #111827;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .verification-timestamp {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 12px;
+      font-style: italic;
+      margin-top: 16px;
+    }
+
+    .divider {
+      height: 1px;
+      background: #e5e7eb;
+      margin: 24px 0;
+    }
+
+    .icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 12px;
+      }
+
+      .header, .card {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-title">
+        <div class="header-icon">🔍</div>
+        <div>
+          <h1>Credential Verifier</h1>
+          <p class="subtitle">Verify Verifiable Credentials with cryptographic proof</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Verifier Selection -->
+    <div class="card">
+      <h2 class="card-title">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        Verifier Profile
+      </h2>
+
+      <div class="form-group">
+        <label class="form-label" for="verifierSelector">I am a:</label>
+        <select id="verifierSelector">
+          <option value="">Loading...</option>
+        </select>
+      </div>
+
+      <div class="verifier-info">
+        <div class="verifier-info-row">
+          <span class="verifier-info-label">Organization:</span>
+          <span class="verifier-info-value" id="verifierName">-</span>
+        </div>
+        <div class="verifier-info-row">
+          <span class="verifier-info-label">Description:</span>
+          <span class="verifier-info-value" id="verifierDescription">-</span>
+        </div>
+        <div class="verifier-info-row">
+          <span class="verifier-info-label">Purpose:</span>
+          <span class="verifier-info-value" id="verifierPurpose">-</span>
+        </div>
+        <div class="verifier-info-row">
+          <span class="verifier-info-label">Note:</span>
+          <span class="verifier-info-value" id="verifierNote">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Scanner -->
+    <div class="card">
+      <h2 class="card-title">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        Scan Credential
+      </h2>
+
+      <div class="button-group">
+        <button id="scanButton" class="button">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          Start Camera Scan
+        </button>
+        <button id="stopButton" class="button button-danger" style="display: none;">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+          </svg>
+          Stop Scanning
+        </button>
+      </div>
+
+      <div id="scannerContainer">
+        <video id="qrVideo" autoplay playsinline></video>
+      </div>
+
+      <div class="scanner-help">
+        <strong>📱 Can't scan?</strong> Use manual input below to paste the credential JWT directly.
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="form-group">
+        <label class="form-label" for="manualJwtInput">Or paste credential JWT:</label>
+        <textarea
+          id="manualJwtInput"
+          placeholder="eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9..."
+        ></textarea>
+      </div>
+
+      <button id="verifyManualButton" class="button">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        Verify Credential
+      </button>
+    </div>
+
+    <!-- Verification Result -->
+    <div id="verificationResult" class="card">
+      <div class="result-container">
+        <div id="resultMessage">Verification Result</div>
+        <div id="resultDetails"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./verifier.js"></script>
+</body>
+</html>
