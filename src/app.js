@@ -773,11 +773,8 @@ async function loadCredentialsPanel() {
           jwt = cred.credentialJwt;
         }
 
-        // Generate QR code
-        generateCredentialQR(jwt, qrContainer, {
-          width: 280,
-          height: 280
-        });
+        // Generate QR code (uses larger default size for better JWT scanning)
+        generateCredentialQR(jwt, qrContainer);
 
         // Update claims indicator
         updateClaimsIndicator(index, privacyMode);

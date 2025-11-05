@@ -104,15 +104,21 @@ export function generateDidQR(did, containerElement, options = {}) {
 
 /**
  * Generate QR code for credential JWT
+ *
+ * Note: JWTs can be 800-1500 characters. We use:
+ * - Larger size (500x500) for better scanning
+ * - Low error correction ('L') to handle dense data
+ * - Larger margin for scanner positioning
  */
 export function generateCredentialQR(jwt, containerElement, options = {}) {
   const qr = new QRCodeStyling({
-    width: options.width || 300,
-    height: options.height || 300,
+    width: options.width || 500,
+    height: options.height || 500,
     data: jwt,
-    margin: options.margin || 10,
+    margin: options.margin || 15,
     qrOptions: {
-      errorCorrectionLevel: 'M'
+      errorCorrectionLevel: options.errorCorrectionLevel || 'L', // Low for dense data
+      typeNumber: 0 // Auto-select version
     },
     dotsOptions: {
       type: 'dots',
