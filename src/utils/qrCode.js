@@ -103,33 +103,40 @@ export function generateDidQR(did, containerElement, options = {}) {
 }
 
 /**
- * Generate QR code for credential JWT
+ * Generate QR code for credential (HC1 format)
  *
- * Note: JWTs can be 800-1500 characters. We use:
- * - Larger size (500x500) for better scanning
+ * Note: HC1 credentials are 200-400 characters (much smaller than JWT).
+ * We use:
+ * - Large size (500x500) for easy scanning
  * - Low error correction ('L') to handle dense data
+ * - Clean black rounded style for professional appearance
  * - Larger margin for scanner positioning
  */
-export function generateCredentialQR(jwt, containerElement, options = {}) {
+export function generateCredentialQR(hc1Data, containerElement, options = {}) {
   const qr = new QRCodeStyling({
     width: options.width || 500,
     height: options.height || 500,
-    data: jwt,
+    data: hc1Data,
     margin: options.margin || 15,
     qrOptions: {
       errorCorrectionLevel: options.errorCorrectionLevel || 'L', // Low for dense data
-      typeNumber: 0 // Auto-select version
+      typeNumber: 0, // Auto-select version
+      mode: 'Byte'
     },
     dotsOptions: {
-      type: 'dots',
-      color: '#2563eb'
+      type: 'rounded', // Smooth rounded dots like profile QR
+      color: '#000000' // Clean black color
     },
     backgroundOptions: {
       color: '#ffffff'
     },
     cornersSquareOptions: {
       type: 'extra-rounded',
-      color: '#1e40af'
+      color: '#000000' // Match dots color
+    },
+    cornersDotOptions: {
+      type: 'dot',
+      color: '#000000'
     }
   });
 
