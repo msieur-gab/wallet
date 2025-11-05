@@ -43,6 +43,11 @@ import {
   getCredentialJWT
 } from './credentials/selectiveDisclosure.js';
 import {
+  createHC1FromCredential,
+  decodeHC1,
+  compareSize
+} from './utils/hc1.js';
+import {
   generateProfileQR,
   generateDidQR,
   generateCredentialQR,
@@ -735,7 +740,7 @@ async function loadCredentialsPanel() {
       }
     }
 
-    // Function to regenerate QR code
+    // Function to regenerate QR code using HC1 format
     async function regenerateQR(index, privacyMode) {
       const cred = credentials[index];
       const qrContainer = document.getElementById(`credential-qr-${index}`);
@@ -746,35 +751,32 @@ async function loadCredentialsPanel() {
         // Clear existing QR
         qrContainer.innerHTML = '<p style="color: #6b7280; font-size: 13px;">Generating...</p>';
 
-        let jwt;
+        // Build credential data based on privacy mode
+        let credentialForEncoding;
 
-        // Privacy mode requires password for signing
         if (privacyMode) {
-          // Check if we have the password
-          if (!sessionPassword) {
-            const password = prompt('Enter your password to create privacy-preserving credential:');
-            if (!password) {
-              qrContainer.innerHTML = '<p style="color: #9ca3af; font-size: 13px;">Cancelled</p>';
-              return;
-            }
-            // Verify password and store if correct
-            try {
-              await loadPrivateKey(currentUser, password);
-              sessionPassword = password; // Store for future use
-            } catch (error) {
-              qrContainer.innerHTML = '<p style="color: #ef4444; font-size: 13px;">Incorrect password</p>';
-              return;
-            }
-          }
-
-          jwt = await getCredentialJWT(currentUser, sessionPassword, cred, true);
+          // Privacy mode - use minimal claims
+          const minimalClaims = getMinimalClaims(cred.credentialType, cred.claims);
+          credentialForEncoding = {
+            ...cred,
+            claims: minimalClaims
+          };
         } else {
-          // Full mode - use original JWT (no password needed)
-          jwt = cred.credentialJwt;
+          // Full mode - use all claims
+          credentialForEncoding = cred;
         }
 
-        // Generate QR code (uses larger default size for better JWT scanning)
-        generateCredentialQR(jwt, qrContainer);
+        // Encode as HC1 (compact, scannable format)
+        const hc1String = createHC1FromCredential(credentialForEncoding);
+
+        // Generate QR code with HC1 data
+        generateCredentialQR(hc1String, qrContainer);
+
+        // Show size comparison (for educational purposes)
+        if (cred.credentialJwt) {
+          const comparison = compareSize(cred.credentialJwt, hc1String);
+          console.log(`HC1 Size Reduction: ${comparison.reduction} (${comparison.ratio})`);
+        }
 
         // Update claims indicator
         updateClaimsIndicator(index, privacyMode);
