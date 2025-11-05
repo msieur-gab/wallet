@@ -127,6 +127,8 @@ User Wallet                    Verifier Service
 - `did-resolver` - DID resolution
 - `key-did-resolver` - did:key method support
 
+**Note:** The verifier uses **import maps** to load dependencies from CDN (esm.sh) without requiring a bundler. This enables running directly in modern browsers with native ES modules support.
+
 ### Supported Credential Types
 
 - VaccinationCredential
