@@ -42,6 +42,13 @@ import {
   parseQRData,
   downloadQR
 } from './utils/qrCode.js';
+import {
+  generateLetterAvatar,
+  resizeAndCropImage,
+  validateImageFile,
+  getAvatarForDisplay,
+  getBase64Size
+} from './utils/avatar.js';
 
 // Global state
 let currentUser = null;
@@ -126,9 +133,11 @@ function updateHeader(profile, keys) {
     avatarImg.classList.remove('hidden');
     avatarText.classList.add('hidden');
   } else {
-    avatarText.textContent = displayName.charAt(0).toUpperCase();
-    avatarText.classList.remove('hidden');
-    avatarImg.classList.add('hidden');
+    // Use letter avatar as fallback
+    const letterAvatar = generateLetterAvatar(displayName, 80);
+    avatarImg.src = letterAvatar;
+    avatarImg.classList.remove('hidden');
+    avatarText.classList.add('hidden');
   }
 }
 
@@ -177,7 +186,9 @@ function setupEventListeners() {
 
   // Profile actions
   document.getElementById('saveProfileBtn').addEventListener('click', handleSaveProfile);
-  document.getElementById('editProfilePic').addEventListener('click', handleProfilePictureChange);
+  document.getElementById('uploadAvatarBtn').addEventListener('click', handleUploadAvatar);
+  document.getElementById('generateLetterAvatarBtn').addEventListener('click', handleGenerateLetterAvatar);
+  document.getElementById('editProfilePic').addEventListener('change', handleProfilePictureChange);
   document.getElementById('downloadQRBtn').addEventListener('click', handleDownloadQR);
 
   // Export profile as text
@@ -329,15 +340,22 @@ async function loadProfilePanel(profile) {
   document.getElementById('profileDisplayName').textContent = profile.displayName || currentUser;
   document.getElementById('profileDid').textContent = keys.did;
 
-  // Update profile picture
+  // Update profile picture with letter avatar fallback
   const profilePicEl = document.getElementById('profilePicture');
-  const initialEl = document.getElementById('profileInitial');
+  const displayName = profile.displayName || currentUser;
 
   if (profile.profilePicture) {
     profilePicEl.innerHTML = `<img src="${profile.profilePicture}" alt="Profile">`;
   } else {
-    initialEl.textContent = (profile.displayName || currentUser).charAt(0).toUpperCase();
+    // Generate and display letter avatar
+    const letterAvatar = generateLetterAvatar(displayName, 240);
+    profilePicEl.innerHTML = `<img src="${letterAvatar}" alt="Profile">`;
   }
+
+  // Update edit form avatar preview
+  const avatarPreview = document.getElementById('avatarPreview');
+  const avatarForPreview = getAvatarForDisplay(displayName, profile.profilePicture, 160);
+  avatarPreview.innerHTML = `<img src="${avatarForPreview}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">`;
 
   // Generate QR code
   const qrContainer = document.getElementById('profileQR');
@@ -391,20 +409,63 @@ async function handleSaveProfile() {
   }
 }
 
-async function handleProfilePictureChange() {
+async function handleUploadAvatar() {
   const fileInput = document.getElementById('editProfilePic');
-  fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  fileInput.click(); // Trigger file input
+}
 
-    try {
-      await updateProfilePicture(currentUser, file);
-      showMessage('Profile picture updated!', 'success');
-      await loadProfilePanel();
-    } catch (error) {
-      showMessage('Error updating picture: ' + error.message, 'error');
+async function handleGenerateLetterAvatar() {
+  try {
+    const profile = await getProfile(currentUser);
+    const name = profile?.displayName || currentUser;
+
+    // Generate letter avatar
+    const avatarBase64 = generateLetterAvatar(name, 256);
+
+    // Update preview
+    const preview = document.getElementById('avatarPreview');
+    preview.innerHTML = `<img src="${avatarBase64}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">`;
+
+    // Save to profile
+    await updateProfilePicture(currentUser, avatarBase64);
+    showMessage('✅ Letter avatar generated!', 'success');
+    await loadProfilePanel();
+  } catch (error) {
+    showMessage('Error generating avatar: ' + error.message, 'error');
+  }
+}
+
+async function handleProfilePictureChange(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    // Validate file
+    const validation = validateImageFile(file, 5);
+    if (!validation.valid) {
+      showMessage(validation.error, 'error');
+      return;
     }
-  });
+
+    showMessage('⏳ Processing image...', 'info');
+
+    // Resize and crop image
+    const resizedBase64 = await resizeAndCropImage(file, 256, 0.85);
+
+    const sizeKB = getBase64Size(resizedBase64);
+    console.log(`Avatar resized to ${sizeKB}KB`);
+
+    // Update preview
+    const preview = document.getElementById('avatarPreview');
+    preview.innerHTML = `<img src="${resizedBase64}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">`;
+
+    // Save to profile
+    await updateProfilePicture(currentUser, resizedBase64);
+    showMessage(`✅ Profile picture updated! (${sizeKB}KB)`, 'success');
+    await loadProfilePanel();
+  } catch (error) {
+    showMessage('Error updating picture: ' + error.message, 'error');
+  }
 }
 
 async function handleDownloadQR() {
@@ -428,16 +489,30 @@ async function loadContactsPanel() {
       return;
     }
 
-    container.innerHTML = contacts.map(contact => `
-      <div class="credential-item">
-        <div class="credential-type">${contact.contactName}</div>
-        <div class="credential-meta">${contact.contactDid.substring(0, 40)}...</div>
-        <div style="margin-top: 8px;">
-          ${contact.trusted ? '<span class="badge badge-success">Trusted</span>' : ''}
-          <span class="badge badge-info">Added ${new Date(contact.addedAt).toLocaleDateString()}</span>
+    container.innerHTML = contacts.map(contact => {
+      // Generate avatar for contact
+      const avatarSrc = getAvatarForDisplay(
+        contact.contactName,
+        contact.contactProfile?.profilePicture,
+        64
+      );
+
+      return `
+        <div class="credential-item" style="display: flex; align-items: center; gap: 16px;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; overflow: hidden; flex-shrink: 0;">
+            <img src="${avatarSrc}" alt="${contact.contactName}" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div class="credential-type">${contact.contactName}</div>
+            <div class="credential-meta">${contact.contactDid.substring(0, 40)}...</div>
+            <div style="margin-top: 8px;">
+              ${contact.trusted ? '<span class="badge badge-success">Trusted</span>' : ''}
+              <span class="badge badge-info">Added ${new Date(contact.addedAt).toLocaleDateString()}</span>
+            </div>
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
   } catch (error) {
     container.innerHTML = `<p style="color: #ef4444;">Error loading contacts: ${error.message}</p>`;
