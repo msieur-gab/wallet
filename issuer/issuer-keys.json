@@ -1,0 +1,4 @@
+{
+  "note": "This file stores persistent DIDs and private keys for issuer profiles. Safe to commit for demo purposes.",
+  "keys": {}
+}

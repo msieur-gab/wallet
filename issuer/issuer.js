@@ -51,52 +51,7 @@ async function initializeIssuer() {
     issuerProfiles = data.issuers;
 
     // Load or generate keys for each issuer profile
-    for (const profile of issuerProfiles) {
-      let privateKey, publicKey, did, privateKeyHex;
-
-      if (profile.privateKey && profile.did) {
-        // Load existing persistent keys from JSON
-        privateKeyHex = profile.privateKey;
-        privateKey = hexToBytes(privateKeyHex);
-        publicKey = ed25519.getPublicKey(privateKey);
-        did = profile.did;
-
-        // Verify that stored DID matches derived DID
-        const derivedDid = createDidKey(publicKey);
-        if (derivedDid !== did) {
-          console.error(`❌ DID mismatch for ${profile.name}!`);
-          console.error(`   Stored: ${did}`);
-          console.error(`   Derived: ${derivedDid}`);
-          throw new Error(`DID mismatch for ${profile.name}`);
-        }
-
-        console.log(`✅ Loaded persistent keys for ${profile.name}`);
-        console.log(`   DID: ${did}`);
-      } else {
-        // Generate new keys (for profiles without persistent keys)
-        privateKey = ed25519.utils.randomPrivateKey();
-        publicKey = ed25519.getPublicKey(privateKey);
-        did = createDidKey(publicKey);
-        privateKeyHex = bytesToHex(privateKey);
-
-        console.warn(`⚠️  Generated NEW keys for ${profile.name}`);
-        console.warn(`   Private key bytes: ${privateKey.length}`);
-        console.warn(`   Private key hex length: ${privateKeyHex.length}`);
-        console.warn(`   Add to issuers.json:`);
-        console.warn(`   "privateKey": "${privateKeyHex}",`);
-        console.warn(`   "did": "${did}",`);
-      }
-
-      // Create signer compatible with wallet (uses Uint8Array)
-      const signer = createSigner(privateKey);
-
-      issuerKeys[profile.id] = {
-        privateKey,
-        publicKey,
-        did,
-        signer
-      };
-    }
+    await loadOrGenerateKeys();
 
     // Populate issuer selector
     populateIssuerSelector();
@@ -109,6 +64,64 @@ async function initializeIssuer() {
   } catch (error) {
     console.error('Failed to initialize issuer:', error);
     alert('Failed to load issuer profiles. Check console for details.');
+  }
+}
+
+/**
+ * Load keys from issuer-keys.json or generate new ones
+ */
+async function loadOrGenerateKeys() {
+  let storedKeys = {};
+
+  try {
+    const response = await fetch('./issuer-keys.json');
+    const data = await response.json();
+    storedKeys = data.keys || {};
+  } catch (e) {
+    console.warn('⚠️  No issuer-keys.json found, will generate new keys');
+  }
+
+  for (const profile of issuerProfiles) {
+    const stored = storedKeys[profile.id];
+
+    if (stored) {
+      // Load existing persistent keys from JSON file
+      const privateKeyHex = stored.privateKey;
+      const privateKey = hexToBytes(privateKeyHex);
+      const publicKey = ed25519.getPublicKey(privateKey);
+      const did = createDidKey(publicKey);
+
+      // Verify stored DID matches derived DID
+      if (did !== stored.did) {
+        console.error(`❌ DID mismatch for ${profile.name}!`);
+        console.error(`   Stored: ${stored.did}`);
+        console.error(`   Derived: ${did}`);
+        throw new Error(`DID mismatch for ${profile.id}`);
+      }
+
+      const signer = createSigner(privateKey);
+      issuerKeys[profile.id] = { privateKey, publicKey, did, signer };
+      console.log(`✅ Loaded ${profile.name}: ${did}`);
+    } else {
+      // Generate new key
+      const privateKey = ed25519.utils.randomPrivateKey();
+      const publicKey = ed25519.getPublicKey(privateKey);
+      const did = createDidKey(publicKey);
+      const privateKeyHex = bytesToHex(privateKey);
+      const signer = createSigner(privateKey);
+
+      issuerKeys[profile.id] = { privateKey, publicKey, did, signer };
+
+      console.warn(`⚠️  Generated NEW key for ${profile.name}`);
+      console.warn(`   DID: ${did}`);
+      console.warn(`   Add to issuer-keys.json under "keys":`);
+      console.warn(JSON.stringify({
+        [profile.id]: {
+          privateKey: privateKeyHex,
+          did: did
+        }
+      }, null, 2));
+    }
   }
 }
 
