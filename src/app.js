@@ -156,6 +156,14 @@ function setupEventListeners() {
   // Login
   document.getElementById('loginBtn').addEventListener('click', handleLogin);
 
+  // Enter key support for forms
+  document.getElementById('loginPassword').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleLogin();
+  });
+  document.getElementById('regPasswordConfirm').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleRegister();
+  });
+
   // Logout
   document.getElementById('logoutBtn').addEventListener('click', handleLogout);
 

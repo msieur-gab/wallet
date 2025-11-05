@@ -1,4 +1,3 @@
-import { SemaphoreProof } from '@zk-kit/protocols';
 import { db } from '../db/database.js';
 import { loadPrivateKey, createSigner } from '../crypto/keyManager.js';
 import { createVerifiableCredentialJwt, createVerifiablePresentationJwt } from 'did-jwt-vc';
